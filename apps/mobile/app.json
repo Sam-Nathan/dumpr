@@ -11,7 +11,9 @@
     "ios": {
       "bundleIdentifier": "app.dumpr",
       "supportsTablet": false,
-      "associatedDomains": ["applinks:dumpr.app"]
+      "associatedDomains": [
+        "applinks:dumpr.app"
+      ]
     },
     "android": {
       "package": "app.dumpr",
@@ -22,12 +24,27 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "https", "host": "dumpr.app", "pathPrefix": "/r/" },
-            { "scheme": "https", "host": "dumpr.app", "pathPrefix": "/c/" }
+            {
+              "scheme": "https",
+              "host": "dumpr.app",
+              "pathPrefix": "/r/"
+            },
+            {
+              "scheme": "https",
+              "host": "dumpr.app",
+              "pathPrefix": "/c/"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#D4FF3F"
+      }
     },
     "plugins": [
       "expo-router",
@@ -67,12 +84,15 @@
       [
         "expo-splash-screen",
         {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120,
           "backgroundColor": "#16141B",
           "resizeMode": "contain"
         }
       ]
     ],
     "experiments": {},
-    "extra": {}
+    "extra": {},
+    "icon": "./assets/icon.png"
   }
 }

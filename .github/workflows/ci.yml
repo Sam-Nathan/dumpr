@@ -55,19 +55,10 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Type-check and test edge functions
+      - name: Type-check edge functions
         run: |
           shopt -s nullglob
-          for dir in supabase/functions/*/; do
-            name="$(basename "$dir")"
-            [ "$name" = "_shared" ] && continue
-            [ -f "${dir}index.ts" ] || continue
-            echo "::group::${name}"
-            (cd "$dir" && deno check index.ts)
-            (cd "$dir" && deno test --allow-env --allow-net --no-check --permit-no-files)
-            echo "::endgroup::"
-          done
-          # Shared helpers have their own tests (imported by several functions).
-          if ls supabase/functions/_shared/*.test.ts >/dev/null 2>&1; then
-            (cd supabase/functions && deno test --allow-env --allow-net _shared)
-          fi
+          files=(supabase/functions/*/index.ts)
+          if [ "${#files[@]}" -eq 0 ]; then echo "no edge functions yet"; else deno check "${files[@]}"; fi
+      - name: Test edge functions
+        run: deno test --allow-env --allow-net --permit-no-files supabase/functions
