@@ -1,0 +1,30 @@
+# Supabase CLI config (local dev). Remote project: evxufdovegjrlwpxfmhl.
+project_id = "dumpr"
+
+[api]
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[auth]
+site_url = "https://dumpr.app"
+additional_redirect_urls = ["dumpr://", "https://dumpr.app"]
+enable_signup = true
+enable_anonymous_sign_ins = true
+
+[auth.sms]
+enable_signup = true
+enable_confirmations = true
+
+# SMS is delivered by an edge function (MSG91) through the Send SMS auth hook. Enable it on the
+# hosted project (Dashboard > Auth > Hooks) or uncomment here once the function exists:
+# [auth.hook.send_sms]
+# enabled = true
+# uri = "https://evxufdovegjrlwpxfmhl.supabase.co/functions/v1/send-sms-msg91"
+# secrets = "env(SEND_SMS_HOOK_SECRETS)"

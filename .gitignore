@@ -1,0 +1,27 @@
+node_modules/
+.pnpm-store/
+.turbo/
+dist/
+build/
+.next/
+out/
+.expo/
+.expo-shared/
+web-build/
+android/
+ios/
+# ...but local Expo native modules keep their platform sources in android/ and ios/.
+!apps/mobile/modules/*/android/
+!apps/mobile/modules/*/ios/
+*.tsbuildinfo
+coverage/
+.env
+.env.local
+.env.*.local
+supabase/.temp/
+supabase/.branches/
+.DS_Store
+*.log
+next-env.d.ts
+expo-env.d.ts
+.claude/worktrees/

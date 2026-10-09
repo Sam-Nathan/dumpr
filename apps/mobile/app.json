@@ -1,0 +1,78 @@
+{
+  "expo": {
+    "name": "Dumpr",
+    "slug": "dumpr",
+    "scheme": "dumpr",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#16141B",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "app.dumpr",
+      "supportsTablet": false,
+      "associatedDomains": ["applinks:dumpr.app"]
+    },
+    "android": {
+      "package": "app.dumpr",
+      "allowBackup": false,
+      "softwareKeyboardLayoutMode": "resize",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "dumpr.app", "pathPrefix": "/r/" },
+            { "scheme": "https", "host": "dumpr.app", "pathPrefix": "/c/" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      "expo-background-task",
+      [
+        "expo-notifications",
+        {
+          "color": "#D4FF3F",
+          "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Dumpr reads only the photos you pick, when you choose to add them to a Roll.",
+          "cameraPermission": "Dumpr uses the camera only when you open it to take a photo for your Roll."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Dumpr reads your library only when you ask to add existing photos to a Roll.",
+          "savePhotosPermission": "Dumpr saves photos to your library only when you tap Save on a photo or a Roll.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Dumpr uses the camera only when you open it to take a photo for your Roll. Nothing is captured in the background.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#16141B",
+          "resizeMode": "contain"
+        }
+      ]
+    ],
+    "experiments": {},
+    "extra": {}
+  }
+}

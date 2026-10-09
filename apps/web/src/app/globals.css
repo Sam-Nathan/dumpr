@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-paper font-body text-ink antialiased dark:bg-paper-dark dark:text-ink-dark;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+@layer components {
+  .btn-flash {
+    @apply inline-flex min-h-[48px] items-center justify-center rounded-pill bg-flash px-6 font-body text-[16px] font-semibold text-[#16141B] transition-opacity hover:opacity-90;
+  }
+}

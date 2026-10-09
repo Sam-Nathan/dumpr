@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm lint
+      # Mobile native builds are skipped (EAS handles those); the web build proves the workspace compiles.
+      - run: pnpm --filter @dumpr/web build
+
+  db-tests:
+    runs-on: ubuntu-latest
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      # Use the PostgreSQL preinstalled on the runner image; add pgTAP for the same major version.
+      - name: Install pgTAP and pg_prove
+        run: |
+          PGMAJOR="$(ls /usr/lib/postgresql | sort -n | tail -1)"
+          echo "PostgreSQL major: ${PGMAJOR}"
+          sudo apt-get update
+          sudo apt-get install -y "postgresql-${PGMAJOR}-pgtap" libtap-parser-sourcehandler-pgtap-perl
+      - name: Start PostgreSQL
+        run: |
+          sudo systemctl start postgresql
+          sudo -u postgres psql -c "alter user postgres with password 'postgres'"
+      - name: Run migrations + pgTAP tests
+        run: bash supabase/scripts/test_local.sh
+
+  edge-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check and test edge functions
+        run: |
+          shopt -s nullglob
+          for dir in supabase/functions/*/; do
+            name="$(basename "$dir")"
+            [ "$name" = "_shared" ] && continue
+            [ -f "${dir}index.ts" ] || continue
+            echo "::group::${name}"
+            (cd "$dir" && deno check index.ts)
+            (cd "$dir" && deno test --allow-env --allow-net --no-check --permit-no-files)
+            echo "::endgroup::"
+          done
+          # Shared helpers have their own tests (imported by several functions).
+          if ls supabase/functions/_shared/*.test.ts >/dev/null 2>&1; then
+            (cd supabase/functions && deno test --allow-env --allow-net _shared)
+          fi

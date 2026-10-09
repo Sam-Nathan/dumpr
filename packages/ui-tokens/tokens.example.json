@@ -1,0 +1,36 @@
+{
+  "color": {
+    "light": {
+      "paper": "#FAFAF8",
+      "surface": "#FFFFFF",
+      "ink": "#16141B",
+      "ink2": "#4A4652",
+      "ink3": "#6E6977",
+      "line": "#E7E5EA",
+      "flash": "#D4FF3F",
+      "shutter": "#FF6B2C",
+      "danger": "#B42318"
+    },
+    "dark": {
+      "paper": "#0F0E12",
+      "surface": "#1B1A20",
+      "text": "#F4F3F6",
+      "text2": "#B5B1BC",
+      "text3": "#A39FAA",
+      "line": "#2F2D36",
+      "flash": "#D4FF3F",
+      "shutter": "#FF8A3D",
+      "danger": "#FF8A73"
+    }
+  },
+  "tint": {
+    "lilac": { "light": "#E7DEFF", "dark": "#2B2540" },
+    "lime": { "light": "#EAF8C2", "dark": "#26301A" },
+    "sky": { "light": "#D3F0FF", "dark": "#142C38" },
+    "peach": { "light": "#FFE3D3", "dark": "#3A2418" },
+    "pink": { "light": "#FFDDEB", "dark": "#3A1E2B" },
+    "mint": { "light": "#D6F5E8", "dark": "#15302A" }
+  },
+  "font": { "display": "Bricolage Grotesque", "body": "Hanken Grotesk", "mono": "Space Mono" },
+  "radius": { "tile": 10, "input": 14, "card": 24, "sheet": 32, "pill": 999 }
+}
