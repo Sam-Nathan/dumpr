@@ -1,5 +1,6 @@
 import { router, Tabs, usePathname } from 'expo-router';
 import { View } from 'react-native';
+import { useInboxBadgeSync } from '@/data/useInbox';
 import { useNavStore } from '@/state/nav';
 import { NavPill } from '@/ui';
 
@@ -10,6 +11,7 @@ import { NavPill } from '@/ui';
 export default function MainLayout() {
   const pathname = usePathname();
   const active = pathname.startsWith('/inbox') ? 'inbox' : 'crews';
+  useInboxBadgeSync(); // unread chats + activity -> pill badge, realtime inserts
   const inboxBadge = useNavStore((s) => s.inboxBadge);
   const notifyRetap = useNavStore((s) => s.notifyRetap);
 

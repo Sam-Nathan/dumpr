@@ -31,3 +31,8 @@ export * from './ModalSheet';
 export * from './Segmented';
 export * from './Toggle';
 export * from './ListRow';
+export * from './Glyph';
+export * from './ToggleSwitch';
+export * from './SegmentedTabs';
+export * from './SettingsRow';
+export * from './BottomModal';
