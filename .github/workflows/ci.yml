@@ -55,10 +55,18 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Type-check edge functions
+      # Each function has its own deno.json ("nodeModulesDir": "none"); run from inside the function
+      # directory so Deno doesn't pick up the root package.json and look for npm packages in node_modules.
+      - name: Type-check and test edge functions
         run: |
           shopt -s nullglob
-          files=(supabase/functions/*/index.ts)
-          if [ "${#files[@]}" -eq 0 ]; then echo "no edge functions yet"; else deno check "${files[@]}"; fi
-      - name: Test edge functions
-        run: deno test --allow-env --allow-net --permit-no-files supabase/functions
+          status=0
+          for dir in supabase/functions/*/; do
+            name=$(basename "$dir")
+            [ "$name" = "_shared" ] && continue
+            [ -f "$dir/index.ts" ] || continue
+            echo "::group::$name"
+            (cd "$dir" && deno check index.ts && deno test --allow-env --permit-no-files . ../_shared) || status=1
+            echo "::endgroup::"
+          done
+          exit $status
