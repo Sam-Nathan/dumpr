@@ -1,5 +1,7 @@
+import { parseFingerprints } from '../../../lib/wellknown';
+
 // Android App Links verification.
-// TODO: replace the placeholder with the SHA-256 fingerprint(s) of the Play App Signing / upload key.
+// Set ANDROID_SHA256_CERT_FINGERPRINTS (comma list: Play App Signing + upload keys) in the deployment env.
 export const dynamic = 'force-static';
 
 export function GET() {
@@ -9,7 +11,7 @@ export function GET() {
       target: {
         namespace: 'android_app',
         package_name: 'app.dumpr',
-        sha256_cert_fingerprints: ['TODO:SHA256:FINGERPRINT'],
+        sha256_cert_fingerprints: parseFingerprints(process.env.ANDROID_SHA256_CERT_FINGERPRINTS),
       },
     },
   ]);

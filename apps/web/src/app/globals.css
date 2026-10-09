@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --focus: #16141b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --focus: #d4ff3f;
+  }
+}
+/* Surfaces that are always ink (hero, sticky banner) keep a lime focus ring in both themes. */
+.ink-surface {
+  --focus: #d4ff3f;
+}
+
 @layer base {
   body {
     @apply bg-paper font-body text-ink antialiased dark:bg-paper-dark dark:text-ink-dark;
@@ -9,10 +22,45 @@
   html {
     -webkit-text-size-adjust: 100%;
   }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer components {
+  .btn {
+    @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-pill px-6 font-body text-[16px] font-semibold transition-[opacity,transform] duration-[80ms] active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  /* Primary: ONE per screen. */
   .btn-flash {
-    @apply inline-flex min-h-[48px] items-center justify-center rounded-pill bg-flash px-6 font-body text-[16px] font-semibold text-[#16141B] transition-opacity hover:opacity-90;
+    @apply btn bg-flash text-[#16141B] hover:opacity-90;
+  }
+  /* Strong */
+  .btn-ink {
+    @apply btn bg-ink text-paper hover:opacity-90 dark:bg-ink-dark dark:text-paper-dark;
+  }
+  /* Secondary */
+  .btn-outline {
+    @apply btn border-2 border-ink px-5 text-ink hover:opacity-80 dark:border-ink-dark dark:text-ink-dark;
+  }
+  /* Secondary on an always-ink surface */
+  .btn-outline-on-ink {
+    @apply btn border-2 border-[#F4F3F6] px-5 text-[#F4F3F6] hover:opacity-80;
+  }
+  /* Tertiary */
+  .btn-text {
+    @apply btn px-3 text-ink underline-offset-4 hover:underline dark:text-ink-dark;
+  }
+  .stamp {
+    @apply font-mono text-[11px] font-bold uppercase tracking-[0.08em];
   }
 }

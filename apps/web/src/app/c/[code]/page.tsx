@@ -14,5 +14,5 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function Page({ params }: Props) {
   const { code } = await params;
-  return <InvitePage code={code} path={`/r/${encodeURIComponent(code)}`} />;
+  return <InvitePage code={code} path={`/c/${encodeURIComponent(code)}`} />;
 }
