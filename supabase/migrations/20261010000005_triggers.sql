@@ -121,7 +121,7 @@ begin
   if new.cover_photo_id is not null and new.cover_photo_id is distinct from old.cover_photo_id then
     if not exists (
       select 1 from public.photos p
-      where p.id = new.cover_photo_id and p.roll_id = new.id and p.status = 'ready'
+      where p.id = new.cover_photo_id and p.roll_id = new.id and p.status = 'ready' and p.visibility = 'everyone'
     ) then
       raise exception using errcode = 'P0001', message = 'invalid_input';
     end if;

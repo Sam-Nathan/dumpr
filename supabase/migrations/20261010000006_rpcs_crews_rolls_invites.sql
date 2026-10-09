@@ -240,7 +240,8 @@ begin
     raise exception using errcode = 'P0001', message = 'invalid_input';
   end if;
   if p_cover_photo_id is not null and not exists (
-    select 1 from public.photos p where p.id = p_cover_photo_id and p.crew_id = p_crew_id and p.status = 'ready'
+    select 1 from public.photos p where p.id = p_cover_photo_id and p.crew_id = p_crew_id
+      and p.status = 'ready' and p.visibility = 'everyone'
   ) then
     raise exception using errcode = 'P0001', message = 'invalid_input';
   end if;
@@ -257,7 +258,7 @@ $$;
 -- ---------------------------------------------------------------------------------------------
 -- Invites
 -- ---------------------------------------------------------------------------------------------
--- Creates or reuses (same creator + identical settings, still valid) an invite. Caller already authorised.
+-- Creates or reuses (same creator + identical settings incl. ttl, still valid) an invite. Caller already authorised.
 create function private.create_invite_core(
   p_user uuid, p_crew uuid, p_roll uuid, p_ttl_days integer,
   p_requires_approval boolean, p_allow_guests boolean, p_max_uses integer
@@ -290,6 +291,7 @@ begin
     and i.requires_approval = v_req
     and i.allow_guests = v_guests
     and i.max_uses is not distinct from p_max_uses
+    and round(extract(epoch from (i.expires_at - i.created_at)) / 86400) = v_ttl   -- same link lifetime
   order by i.created_at desc
   limit 1;
   if found then

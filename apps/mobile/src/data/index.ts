@@ -1,4 +1,5 @@
 export * from './functions';
+export * from './gate';
 export * from './media';
 export * from './profile';
 export * from './profileGate';

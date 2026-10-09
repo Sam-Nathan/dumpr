@@ -51,6 +51,15 @@ export function parseInviteLink(input: string | null | undefined): ParsedInvite 
     }
   }
 
+  // An app path as expo-router hands it over: "/r/<code>" (or "r/<code>").
+  if (/^\/?[rc]\/[^/]+\/?(?:[?#].*)?$/i.test(text)) {
+    try {
+      return fromPath(text.split(/[?#]/)[0] ?? '');
+    } catch {
+      return null;
+    }
+  }
+
   // https://dumpr.app/r/<code>, http://, or no scheme at all.
   const web = /^(?:https?:\/\/)?([a-z0-9.-]+)(\/[^?#\s]*)/i.exec(text);
   if (web && WEB_HOSTS.has((web[1] ?? '').toLowerCase())) {

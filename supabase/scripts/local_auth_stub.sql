@@ -57,3 +57,12 @@ $$;
 
 grant usage on schema auth, extensions, public to anon, authenticated, service_role;
 grant execute on function auth.uid(), auth.jwt() to anon, authenticated, service_role;
+
+-- Supabase Realtime's publication (empty on a fresh project); migrations add tables to it.
+do $$
+begin
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    create publication supabase_realtime;
+  end if;
+end;
+$$;
