@@ -162,7 +162,6 @@ export default function ImportScreen() {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---- smart: stream the library by date window ----------------------------------------------
@@ -219,7 +218,6 @@ export default function ImportScreen() {
   useEffect(() => {
     if (mode === 'smart' && window) void loadWindow(window, imported);
     // `imported` is deliberately read once per window change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, window, loadWindow]);
 
   // ---- derived -------------------------------------------------------------------------------

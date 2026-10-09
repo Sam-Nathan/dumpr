@@ -73,7 +73,7 @@ export default function PhotoActionsSheet() {
 
   useEffect(() => {
     if (p) setVisState(p.visibility);
-  }, [p?.visibility]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [p?.visibility]);
   useEffect(() => {
     if (audience.data) setPicked(audience.data);
   }, [audience.data]);
