@@ -414,6 +414,8 @@ create table public.media_uploads (
   multipart_upload_id text,
   part_size           integer,
   parts               integer,
+  display_bytes       bigint,
+  thumb_bytes         bigint,
   expires_at          timestamptz,
   created_at          timestamptz not null default now()
 );

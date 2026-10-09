@@ -27,9 +27,11 @@
 --                                          photos_count, crews_count, storage_used_bytes}
 --        sole_host_crews = live crews where the user is the only host AND other members exist.
 --   svc_upload_context(p_user uuid, p_roll uuid)
---        -> {found, can_upload, crew_id, roll_id, is_member, is_admin, is_guest, crew_deleted, sealed,
---            allow_uploads, guests_allowed, guest_uploads_review, guest_photo_count, guest_max_photos,
---            guest_limit_reached, storage_used_bytes, storage_limit_bytes|null, max_photo_bytes, max_upload_parts}
+--        -> {found, can_upload, crew_id|null, roll_id|null (null when the roll is missing or it / its crew is
+--            deleted), is_member, is_admin, is_guest, crew_deleted, sealed, allow_uploads, guests_allowed,
+--            guest_uploads_review, guest_photo_count (the guest's pending+ready+review photos in the roll),
+--            guest_max_photos_per_roll (alias guest_max_photos), guest_limit_reached, storage_used_bytes,
+--            storage_limit_bytes|null (null = unlimited), max_photo_bytes, max_upload_parts}
 --        can_upload = private.can_upload_as() (access, not deleted, allow_uploads unless admin, guests_allowed for
 --        guests); the guest photo cap and storage quota are left to the caller via the returned numbers.
 --
@@ -407,39 +409,40 @@ declare
   v_prof    public.profiles;
   v_cm      public.crew_members;
   v_rm      public.roll_members;
+  v_live    boolean;
   v_guest_n integer := 0;
   v_guest_max integer := coalesce(private.setting_int('limits', 'guest_max_photos_per_roll')::integer, 300);
 begin
   select * into v_roll from public.rolls r where r.id = p_roll;
   select * into v_prof from public.profiles pr where pr.id = p_user;
-  if v_roll.id is null or v_prof.id is null then
-    return jsonb_build_object('found', false, 'can_upload', false);
-  end if;
   select * into v_crew from public.crews c where c.id = v_roll.crew_id;
   select * into v_cm from public.crew_members cm where cm.crew_id = v_roll.crew_id and cm.user_id = p_user;
   select * into v_rm from public.roll_members rm where rm.roll_id = p_roll and rm.user_id = p_user;
-  if v_prof.is_guest then
+  -- live = the roll exists and neither it nor its crew is (soft-)deleted
+  v_live := v_roll.id is not null and v_roll.deleted_at is null and v_crew.deleted_at is null;
+  if coalesce(v_prof.is_guest, false) and v_roll.id is not null then
     select count(*) into v_guest_n from public.photos p
-     where p.roll_id = p_roll and p.uploader_id = p_user and p.status <> 'removed';
+     where p.roll_id = p_roll and p.uploader_id = p_user and p.status in ('pending', 'ready', 'review');
   end if;
   return jsonb_build_object(
-    'found', true,
-    'can_upload', private.can_upload_as(p_user, p_roll),
-    'crew_id', v_roll.crew_id,
-    'roll_id', v_roll.id,
-    'is_member', (v_cm.user_id is not null or v_rm.user_id is not null)
+    'found', v_roll.id is not null and v_prof.id is not null,
+    'can_upload', coalesce(private.can_upload_as(p_user, p_roll), false),
+    'crew_id', case when v_live then v_roll.crew_id end,
+    'roll_id', case when v_live then v_roll.id end,
+    'is_member', v_live and (v_cm.user_id is not null or v_rm.user_id is not null)
                  and not coalesce(v_roll.surprise_honoree_id = p_user and now() < v_roll.reveal_at, false),
-    'is_admin', v_cm.user_id is not null and (v_cm.role in ('host', 'cohost') or v_roll.created_by = p_user),
-    'is_guest', v_prof.is_guest,
-    'crew_deleted', v_crew.deleted_at is not null or v_roll.deleted_at is not null,
-    'sealed', private.roll_is_sealed(v_roll),
-    'allow_uploads', v_roll.allow_uploads,
-    'guests_allowed', v_roll.guests_allowed,
-    'guest_uploads_review', v_roll.guest_uploads_review,
+    'is_admin', v_live and v_cm.user_id is not null and (v_cm.role in ('host', 'cohost') or v_roll.created_by = p_user),
+    'is_guest', coalesce(v_prof.is_guest, false),
+    'crew_deleted', v_roll.id is not null and not v_live,
+    'sealed', coalesce(private.roll_is_sealed(v_roll), false),
+    'allow_uploads', coalesce(v_roll.allow_uploads, false),
+    'guests_allowed', coalesce(v_roll.guests_allowed, false),
+    'guest_uploads_review', coalesce(v_roll.guest_uploads_review, false),
     'guest_photo_count', v_guest_n,
+    'guest_max_photos_per_roll', v_guest_max,
     'guest_max_photos', v_guest_max,
-    'guest_limit_reached', v_prof.is_guest and v_guest_n >= v_guest_max,
-    'storage_used_bytes', v_prof.storage_used_bytes,
+    'guest_limit_reached', coalesce(v_prof.is_guest, false) and v_guest_n >= v_guest_max,
+    'storage_used_bytes', coalesce(v_prof.storage_used_bytes, 0),
     'storage_limit_bytes', coalesce(v_prof.storage_quota_bytes, private.setting_int('limits', 'storage_bytes_per_user')),
     'max_photo_bytes', coalesce(private.setting_int('limits', 'max_photo_bytes'), 52428800),
     'max_upload_parts', coalesce(private.setting_int('limits', 'max_upload_parts'), 100)

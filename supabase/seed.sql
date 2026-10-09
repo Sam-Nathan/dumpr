@@ -1,0 +1,2 @@
+-- Intentionally empty: app_settings defaults live in migration 20261010000011_settings_seed.sql so the
+-- hosted project gets them too. Test fixtures live inside each supabase/tests/*.test.sql file.

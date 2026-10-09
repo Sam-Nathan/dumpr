@@ -62,6 +62,7 @@ grant execute on function auth.uid(), auth.jwt() to anon, authenticated, service
 do $$
 begin
   if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    set local client_min_messages = error;   -- plain PG warns about wal_level; irrelevant for tests
     create publication supabase_realtime;
   end if;
 end;
