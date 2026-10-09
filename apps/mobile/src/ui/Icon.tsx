@@ -1,9 +1,7 @@
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 type Shape =
-  | { p: string }
-  | { c: [number, number, number] }
-  | { r: [number, number, number, number, number] };
+  { p: string } | { c: [number, number, number] } | { r: [number, number, number, number, number] };
 
 const p = (d: string): Shape => ({ p: d });
 
@@ -43,10 +41,7 @@ const GLYPHS = {
   bell: [p('M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9'), p('M13.73 21a2 2 0 0 1-3.46 0')],
   search: [{ c: [11, 11, 8] }, p('M21 21l-4.35-4.35')],
   share: [p('M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8'), p('M16 6l-4-4-4 4'), p('M12 2v13')],
-  copy: [
-    { r: [9, 9, 13, 13, 2] },
-    p('M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'),
-  ],
+  copy: [{ r: [9, 9, 13, 13, 2] }, p('M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1')],
   trash: [
     p('M3 6h18'),
     p('M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'),
@@ -69,8 +64,19 @@ const GLYPHS = {
   ],
   blocked: [{ r: [4, 4, 16, 16, 3] }, p('M4 4l16 16')],
   flash: [p('M13 2L3 14h9l-1 8 10-12h-9l1-8z')],
-  flip: [p('M17 1l4 4-4 4'), p('M3 11V9a4 4 0 0 1 4-4h14'), p('M7 23l-4-4 4-4'), p('M21 13v2a4 4 0 0 1-4 4H3')],
-  bellOff: [p('M13.73 21a2 2 0 0 1-3.46 0'), p('M18.63 13A17.89 17.89 0 0 1 18 8'), p('M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14'), p('M18 8a6 6 0 0 0-9.33-5'), p('M1 1l22 22')],
+  flip: [
+    p('M17 1l4 4-4 4'),
+    p('M3 11V9a4 4 0 0 1 4-4h14'),
+    p('M7 23l-4-4 4-4'),
+    p('M21 13v2a4 4 0 0 1-4 4H3'),
+  ],
+  bellOff: [
+    p('M13.73 21a2 2 0 0 1-3.46 0'),
+    p('M18.63 13A17.89 17.89 0 0 1 18 8'),
+    p('M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14'),
+    p('M18 8a6 6 0 0 0-9.33-5'),
+    p('M1 1l22 22'),
+  ],
 } satisfies Record<string, Shape[]>;
 
 export type IconName = keyof typeof GLYPHS;

@@ -18,7 +18,11 @@ export default function Inbox() {
     <View className="flex-1 bg-paper dark:bg-paper-dark">
       <ScrollView
         ref={scroll}
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: clearance, paddingHorizontal: 16 }}
+        contentContainerStyle={{
+          paddingTop: insets.top + 8,
+          paddingBottom: clearance,
+          paddingHorizontal: 16,
+        }}
       >
         <Text variant="display" heading className="mt-12">
           Inbox

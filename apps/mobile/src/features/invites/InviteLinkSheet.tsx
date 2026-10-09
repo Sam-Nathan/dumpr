@@ -168,7 +168,12 @@ export function InviteLinkSheet({ visible, onClose }: InviteLinkSheetProps) {
               ) : (
                 <Text variant="caption">Point at the QR on your friend's phone.</Text>
               )}
-              <Button label="Paste a link instead" variant="tertiary" fullWidth onPress={() => setMode('paste')} />
+              <Button
+                label="Paste a link instead"
+                variant="tertiary"
+                fullWidth
+                onPress={() => setMode('paste')}
+              />
             </View>
           ) : null}
         </View>

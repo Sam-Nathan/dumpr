@@ -51,7 +51,17 @@ export default function KitDemo() {
 
       <Section title="BUTTONS">
         <View className="gap-2">
-          <Button label="Join Roll" variant="primary" size="lg" onPress={() => toast.show({ message: "Posted 3 to Goa '26", action: { label: 'Undo', onPress: () => undefined } })} />
+          <Button
+            label="Join Roll"
+            variant="primary"
+            size="lg"
+            onPress={() =>
+              toast.show({
+                message: "Posted 3 to Goa '26",
+                action: { label: 'Undo', onPress: () => undefined },
+              })
+            }
+          />
           <View className="flex-row flex-wrap items-center gap-2">
             <Button label="New" icon="plus" variant="strong" />
             <Button label="Download all" icon="download" variant="secondary" />
@@ -68,7 +78,12 @@ export default function KitDemo() {
               }
             />
           </View>
-          <Button label="Download" variant="secondary" disabled disabledReason="Host turned downloads off" />
+          <Button
+            label="Download"
+            variant="secondary"
+            disabled
+            disabledReason="Host turned downloads off"
+          />
           <Button label="Saving" variant="strong" loading />
           <View className="flex-row gap-2">
             <IconButton icon="share" label="Share" />
@@ -81,13 +96,25 @@ export default function KitDemo() {
       <Section title="CHIPS & REACTIONS">
         <View className="flex-row flex-wrap gap-2">
           {['All', 'Haldi', 'Mehendi', 'Sangeet'].map((c) => (
-            <Chip key={c} label={c} count={c === 'Sangeet' ? 312 : undefined} selected={selected === c} onPress={() => setSelected(c)} />
+            <Chip
+              key={c}
+              label={c}
+              count={c === 'Sangeet' ? 312 : undefined}
+              selected={selected === c}
+              onPress={() => setSelected(c)}
+            />
           ))}
           <Chip label="#maggi-at-3am" tone="tint" mono />
         </View>
         <View className="mt-2 flex-row flex-wrap gap-2">
           {REACTIONS.map((r, i) => (
-            <ReactionChip key={r} kind={r} count={[9, 6, 2, 0, 1][i]} selected={i === 4} onPress={() => undefined} />
+            <ReactionChip
+              key={r}
+              kind={r}
+              count={[9, 6, 2, 0, 1][i]}
+              selected={i === 4}
+              onPress={() => undefined}
+            />
           ))}
         </View>
       </Section>
@@ -97,27 +124,45 @@ export default function KitDemo() {
           <Avatar name="Meera Iyer" size={64} ring="lime" />
           <Avatar name="Kabir Shah" size={40} ring="lilac" />
           <Avatar name="Diya" size={32} />
-          <Facepile people={[{ name: 'Diya' }, { name: 'Aarav R' }, { name: 'Kabir Shah' }]} total={6} />
+          <Facepile
+            people={[{ name: 'Diya' }, { name: 'Aarav R' }, { name: 'Kabir Shah' }]}
+            total={6}
+          />
         </View>
       </Section>
 
       <Section title="PHOTO TILES">
         <View className="flex-row flex-wrap gap-1">
-          {(['default', 'selected', 'uploading', 'failed', 'duplicate', 'sealed'] as const).map((s) => (
-            <View key={s} style={{ width: '32%' }}>
-              <PhotoTile state={s} progress={0.6} blurhash="LKO2?U%2Tw=w]~RBVZRi};RPxuwH" label={s} onRetry={() => toast.show({ message: 'Retrying' })} />
-              <Text variant="caption" className="mb-2 mt-1 text-center">
-                {s}
-              </Text>
-            </View>
-          ))}
+          {(['default', 'selected', 'uploading', 'failed', 'duplicate', 'sealed'] as const).map(
+            (s) => (
+              <View key={s} style={{ width: '32%' }}>
+                <PhotoTile
+                  state={s}
+                  progress={0.6}
+                  blurhash="LKO2?U%2Tw=w]~RBVZRi};RPxuwH"
+                  label={s}
+                  onRetry={() => toast.show({ message: 'Retrying' })}
+                />
+                <Text variant="caption" className="mb-2 mt-1 text-center">
+                  {s}
+                </Text>
+              </View>
+            ),
+          )}
         </View>
       </Section>
 
       <Section title="FIELDS">
         <TextField label="Username" value="meera.clicks" onChangeText={() => undefined} />
         <View className="mt-3">
-          <OtpBoxes value={otp} onChange={setOtp} onComplete={() => setShake((n) => n + 1)} error={shake > 0 && otp.length < 6} shakeKey={shake} autoFocus={false} />
+          <OtpBoxes
+            value={otp}
+            onChange={setOtp}
+            onComplete={() => setShake((n) => n + 1)}
+            error={shake > 0 && otp.length < 6}
+            shakeKey={shake}
+            autoFocus={false}
+          />
         </View>
       </Section>
 

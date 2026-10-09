@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { findCountry, formatInternational, formatNational, isValidNational, nationalDigits, sanitizeOtp, toE164 } from './phone';
+import {
+  findCountry,
+  formatInternational,
+  formatNational,
+  isValidNational,
+  nationalDigits,
+  sanitizeOtp,
+  toE164,
+} from './phone';
 
 const IN = findCountry('IN');
 const US = findCountry('US');

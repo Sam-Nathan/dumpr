@@ -181,7 +181,9 @@ export default function PhoneSignIn() {
         loading={sending}
         disabled={!valid || waitIn > 0}
         disabledReason={
-          waitIn > 0 ? 'Codes are paused for a moment.' : `Enter your ${country.lengths[0]}-digit number`
+          waitIn > 0
+            ? 'Codes are paused for a moment.'
+            : `Enter your ${country.lengths[0]}-digit number`
         }
         onPress={() => void send()}
       />
@@ -193,7 +195,11 @@ export default function PhoneSignIn() {
         loading={verifying}
         disabled={code.length !== 6 || triesLeft <= 0 || waitIn > 0}
         disabledReason={
-          triesLeft <= 0 ? 'Send a new code to try again' : waitIn > 0 ? `Try again in ${formatResend(waitIn)}` : 'Enter the 6-digit code'
+          triesLeft <= 0
+            ? 'Send a new code to try again'
+            : waitIn > 0
+              ? `Try again in ${formatResend(waitIn)}`
+              : 'Enter the 6-digit code'
         }
         onPress={() => void verify()}
       />
@@ -202,7 +208,15 @@ export default function PhoneSignIn() {
   return (
     <Screen
       scroll
-      header={{ back: true, onBack: step === 'code' ? editNumber : undefined, right: <Text variant="stamp" tone="tertiary" className="text-[11px]">{login ? 'LOG IN' : 'STEP 1 OF 2'}</Text> }}
+      header={{
+        back: true,
+        onBack: step === 'code' ? editNumber : undefined,
+        right: (
+          <Text variant="stamp" tone="tertiary" className="text-[11px]">
+            {login ? 'LOG IN' : 'STEP 1 OF 2'}
+          </Text>
+        ),
+      }}
       onHardwareBack={step === 'code' ? () => (editNumber(), true) : undefined}
       footer={
         <View className="gap-3">
@@ -214,14 +228,33 @@ export default function PhoneSignIn() {
           </View>
           <View className="flex-row gap-3">
             <View className="flex-1">
-              <Button label="Apple" variant="secondary" fullWidth loading={oauthBusy === 'apple'} onPress={() => void oauth('apple')} accessibilityHint="Continue with Apple" />
+              <Button
+                label="Apple"
+                variant="secondary"
+                fullWidth
+                loading={oauthBusy === 'apple'}
+                onPress={() => void oauth('apple')}
+                accessibilityHint="Continue with Apple"
+              />
             </View>
             <View className="flex-1">
-              <Button label="Google" variant="secondary" fullWidth loading={oauthBusy === 'google'} onPress={() => void oauth('google')} accessibilityHint="Continue with Google" />
+              <Button
+                label="Google"
+                variant="secondary"
+                fullWidth
+                loading={oauthBusy === 'google'}
+                onPress={() => void oauth('google')}
+                accessibilityHint="Continue with Google"
+              />
             </View>
           </View>
           {oauthError ? (
-            <Text variant="caption" tone="danger" className="text-center" accessibilityLiveRegion="polite">
+            <Text
+              variant="caption"
+              tone="danger"
+              className="text-center"
+              accessibilityLiveRegion="polite"
+            >
               {oauthError}
             </Text>
           ) : null}
@@ -293,7 +326,12 @@ export default function PhoneSignIn() {
             <Text variant="body" tone="default" className="flex-1 font-body-semibold">
               Code sent to {formatInternational(digits, country)}
             </Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Edit number" hitSlop={12} onPress={editNumber}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit number"
+              hitSlop={12}
+              onPress={editNumber}
+            >
               <Text variant="body" tone="default" className="font-body-bold underline">
                 Edit
               </Text>
@@ -394,7 +432,11 @@ function CountryPicker({
                   <Text variant="body" tone="tertiary" className="font-mono">
                     +{item.dial}
                   </Text>
-                  {item.iso === selected.iso ? <Icon name="check" size={18} color={colors.ink} /> : <View style={{ width: 18 }} />}
+                  {item.iso === selected.iso ? (
+                    <Icon name="check" size={18} color={colors.ink} />
+                  ) : (
+                    <View style={{ width: 18 }} />
+                  )}
                 </View>
               </PressableScale>
             )}

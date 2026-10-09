@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { needsProfileSetup, resolveGate } from './profileGate';
 
-const base = { authReady: true, hasSession: true, isGuest: false, profileLoading: false, profileError: false };
+const base = {
+  authReady: true,
+  hasSession: true,
+  isGuest: false,
+  profileLoading: false,
+  profileError: false,
+};
 const done = { display_name: 'Meera', handle: 'meera', is_guest: false };
 
 describe('auth gate', () => {
   it('needs profile for default names or missing handle', () => {
-    expect(needsProfileSetup({ display_name: 'New user', handle: 'x' + 'yz', is_guest: false })).toBe(true);
+    expect(
+      needsProfileSetup({ display_name: 'New user', handle: 'x' + 'yz', is_guest: false }),
+    ).toBe(true);
     expect(needsProfileSetup({ display_name: 'Meera', handle: null, is_guest: false })).toBe(true);
     expect(needsProfileSetup(done)).toBe(false);
     expect(needsProfileSetup({ display_name: 'Guest', handle: null, is_guest: true })).toBe(false);

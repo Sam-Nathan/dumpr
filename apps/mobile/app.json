@@ -11,9 +11,7 @@
     "ios": {
       "bundleIdentifier": "app.dumpr",
       "supportsTablet": false,
-      "associatedDomains": [
-        "applinks:dumpr.app"
-      ]
+      "associatedDomains": ["applinks:dumpr.app"]
     },
     "android": {
       "package": "app.dumpr",
@@ -35,10 +33,7 @@
               "pathPrefix": "/c/"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
       "adaptiveIcon": {

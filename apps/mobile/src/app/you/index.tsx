@@ -21,17 +21,30 @@ export default function You() {
     { label: 'Storage', href: '/you/storage' },
     { label: 'Uploads', href: '/uploads' },
   ];
-  if (__DEV__) rows.push({ label: 'UI kit (dev)', href: '/dev/kit' }, { label: 'Edge states (dev)', href: '/dev/edge-states' });
+  if (__DEV__)
+    rows.push(
+      { label: 'UI kit (dev)', href: '/dev/kit' },
+      { label: 'Edge states (dev)', href: '/dev/edge-states' },
+    );
 
   return (
     <Screen scroll header={{ back: true }}>
       <View className="mt-2 flex-row items-center gap-4">
-        <Avatar name={p?.display_name ?? ''} avatarKey={p?.avatar_key} ring={p?.ring_color ?? 'lime'} size={72} />
+        <Avatar
+          name={p?.display_name ?? ''}
+          avatarKey={p?.avatar_key}
+          ring={p?.ring_color ?? 'lime'}
+          size={72}
+        />
         <View className="flex-1">
           <Text variant="title" heading numberOfLines={2}>
             {p?.display_name ?? ' '}
           </Text>
-          {p?.handle ? <Text variant="body">@{p.handle}</Text> : isGuest ? <Text variant="body">Guest</Text> : null}
+          {p?.handle ? (
+            <Text variant="body">@{p.handle}</Text>
+          ) : isGuest ? (
+            <Text variant="body">Guest</Text>
+          ) : null}
         </View>
       </View>
 

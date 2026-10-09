@@ -73,29 +73,28 @@ export function Button({
     onDark && (variant === 'secondary' || variant === 'tertiary')
       ? INK_TEXT
       : variant === 'primary'
-      ? INK
-      : variant === 'strong'
-        ? scheme === 'dark'
-          ? INK
-          : INK_TEXT
-        : variant === 'destructive'
+        ? INK
+        : variant === 'strong'
           ? scheme === 'dark'
-            ? '#FF8A73'
-            : '#B42318'
-          : scheme === 'dark'
-            ? INK_TEXT
-            : INK;
+            ? INK
+            : INK_TEXT
+          : variant === 'destructive'
+            ? scheme === 'dark'
+              ? '#FF8A73'
+              : '#B42318'
+            : scheme === 'dark'
+              ? INK_TEXT
+              : INK;
   const spinner: ReactNode = (
     <ActivityIndicator
       size="small"
-      color={variant === 'strong' && scheme === 'dark' ? INK : variant === 'primary' ? INK : iconColor}
+      color={
+        variant === 'strong' && scheme === 'dark' ? INK : variant === 'primary' ? INK : iconColor
+      }
     />
   );
   const textOnly = variant === 'tertiary' || variant === 'destructive';
-  const surface =
-    onDark && variant === 'secondary'
-      ? 'border border-white/25'
-      : SURFACE[variant];
+  const surface = onDark && variant === 'secondary' ? 'border border-white/25' : SURFACE[variant];
   const labelTone: TextTone =
     onDark && (variant === 'secondary' || variant === 'tertiary') ? 'inverse' : LABEL_TONE[variant];
   const reason = disabled && disabledReason ? disabledReason : null;
@@ -141,4 +140,3 @@ export function Button({
     </View>
   );
 }
-

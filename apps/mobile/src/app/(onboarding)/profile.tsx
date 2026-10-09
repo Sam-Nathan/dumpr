@@ -50,7 +50,11 @@ function useHandleCheck(handle: string, current: string | null | undefined): Han
       try {
         const r = await rpc<CheckHandleResult>('check_handle', { p_handle: handle });
         if (id !== seq.current) return;
-        setStatus(r.available ? { kind: 'available' } : { kind: 'taken', suggestions: (r.suggestions ?? []).slice(0, 3) });
+        setStatus(
+          r.available
+            ? { kind: 'available' }
+            : { kind: 'taken', suggestions: (r.suggestions ?? []).slice(0, 3) },
+        );
       } catch {
         if (id === seq.current) setStatus({ kind: 'error' });
       }
@@ -125,7 +129,11 @@ export default function ProfileSetup() {
     const fromCamera = async () => {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) return;
-      const r = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+      const r = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
       if (!r.canceled && r.assets[0]) setPhoto(r.assets[0].uri);
     };
     const fromGallery = async () => {
@@ -164,7 +172,9 @@ export default function ProfileSetup() {
     } catch (e) {
       const err = toAppError(e);
       setSubmitError(
-        err.code === 'handle_taken' ? 'Someone grabbed that username a moment ago. Pick another.' : errorCopy(err.code).message,
+        err.code === 'handle_taken'
+          ? 'Someone grabbed that username a moment ago. Pick another.'
+          : errorCopy(err.code).message,
       );
     }
   };
@@ -180,7 +190,12 @@ export default function ProfileSetup() {
         </Text>
       </View>
     ) : status.kind === 'taken' ? (
-      <Text variant="caption" tone="danger" className="font-body-semibold" accessibilityLiveRegion="polite">
+      <Text
+        variant="caption"
+        tone="danger"
+        className="font-body-semibold"
+        accessibilityLiveRegion="polite"
+      >
         Taken
       </Text>
     ) : null;
@@ -201,7 +216,13 @@ export default function ProfileSetup() {
             <View className="flex-row items-center gap-3 rounded-card bg-tint-lime p-4 dark:bg-tint-lime-dark">
               <Icon name="link" size={20} color={colors.ink} />
               <Text variant="body" tone="default" className="flex-1">
-                {pending.hostName ? <Text variant="body" tone="default" className="font-body-bold">{pending.hostName}</Text> : 'Someone'}
+                {pending.hostName ? (
+                  <Text variant="body" tone="default" className="font-body-bold">
+                    {pending.hostName}
+                  </Text>
+                ) : (
+                  'Someone'
+                )}
                 {' invited you to '}
                 <Text variant="body" tone="default" className="font-body-bold">
                   {pending.title ?? 'a Roll'}
@@ -211,7 +232,12 @@ export default function ProfileSetup() {
             </View>
           ) : null}
           {submitError ? (
-            <Text variant="caption" tone="danger" className="text-center" accessibilityLiveRegion="polite">
+            <Text
+              variant="caption"
+              tone="danger"
+              className="text-center"
+              accessibilityLiveRegion="polite"
+            >
               {submitError}
             </Text>
           ) : null}
@@ -342,12 +368,18 @@ export default function ProfileSetup() {
           </Text>
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={day && month ? `Birthday ${formatBirthday(day, month)}. Change` : 'Add birthday'}
+            accessibilityLabel={
+              day && month ? `Birthday ${formatBirthday(day, month)}. Change` : 'Add birthday'
+            }
             onPress={() => setBirthdayOpen(true)}
             haptics={false}
             className="min-h-[52px] flex-row items-center justify-between rounded-input border border-line bg-surface px-4 dark:border-line-dark dark:bg-surface-dark"
           >
-            <Text variant="body" tone={day && month ? 'default' : 'tertiary'} className="text-[16px]">
+            <Text
+              variant="body"
+              tone={day && month ? 'default' : 'tertiary'}
+              className="text-[16px]"
+            >
               {day && month ? formatBirthday(day, month) : 'Add day and month'}
             </Text>
             {day && month ? (
@@ -371,7 +403,12 @@ export default function ProfileSetup() {
         </View>
 
         <View className="items-center">
-          <Button label="Not you? Use another account" variant="tertiary" size="sm" onPress={() => void signOut()} />
+          <Button
+            label="Not you? Use another account"
+            variant="tertiary"
+            size="sm"
+            onPress={() => void signOut()}
+          />
         </View>
       </View>
 
@@ -435,7 +472,13 @@ function BirthdayPicker({
             </Text>
             <View className="flex-row flex-wrap gap-2">
               {Array.from({ length: 12 }, (_, i) => i + 1).map((mm) => (
-                <Chip key={mm} label={monthLong(mm - 1).slice(0, 3)} selected={m === mm} onPress={() => setM(mm)} accessibilityLabel={monthLong(mm - 1)} />
+                <Chip
+                  key={mm}
+                  label={monthLong(mm - 1).slice(0, 3)}
+                  selected={m === mm}
+                  onPress={() => setM(mm)}
+                  accessibilityLabel={monthLong(mm - 1)}
+                />
               ))}
             </View>
             <Text variant="caption" tone="secondary" className="mb-2 mt-4 font-body-semibold">
@@ -451,7 +494,11 @@ function BirthdayPicker({
                   onPress={() => setD(dd)}
                   className={`h-11 w-11 items-center justify-center rounded-pill ${d === dd ? 'bg-ink dark:bg-ink-dark' : ''}`}
                 >
-                  <Text variant="body" tone={d === dd ? 'inverse' : 'default'} className={d === dd ? 'dark:text-ink' : ''}>
+                  <Text
+                    variant="body"
+                    tone={d === dd ? 'inverse' : 'default'}
+                    className={d === dd ? 'dark:text-ink' : ''}
+                  >
                     {dd}
                   </Text>
                 </Pressable>

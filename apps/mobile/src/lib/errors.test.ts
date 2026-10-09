@@ -25,7 +25,8 @@ describe('errorCopy', () => {
   });
 
   it('never blames the user', () => {
-    const blaming = /\byou (did|made|entered|typed) (it|something|that)? ?wrong|your fault|invalid input|you failed|illegal/i;
+    const blaming =
+      /\byou (did|made|entered|typed) (it|something|that)? ?wrong|your fault|invalid input|you failed|illegal/i;
     for (const code of ALL) {
       const c = errorCopy(code);
       expect(`${c.title} ${c.message}`).not.toMatch(blaming);
@@ -62,10 +63,23 @@ describe('toAppError', () => {
   });
 
   it('maps Supabase auth errors', () => {
-    expect(toAppError({ name: 'AuthApiError', code: 'otp_expired', status: 403, message: 'x' }).code).toBe('otp_invalid');
-    expect(toAppError({ name: 'AuthApiError', code: 'over_sms_send_rate_limit', status: 429, message: 'x' }).code).toBe('rate_limited');
-    expect(toAppError({ name: 'AuthApiError', code: 'sms_send_failed', status: 500, message: 'x' }).code).toBe('sms_failed');
-    expect(toAppError({ name: 'AuthApiError', code: 'whatever', status: 400, message: 'x' }).code).toBe('auth_failed');
+    expect(
+      toAppError({ name: 'AuthApiError', code: 'otp_expired', status: 403, message: 'x' }).code,
+    ).toBe('otp_invalid');
+    expect(
+      toAppError({
+        name: 'AuthApiError',
+        code: 'over_sms_send_rate_limit',
+        status: 429,
+        message: 'x',
+      }).code,
+    ).toBe('rate_limited');
+    expect(
+      toAppError({ name: 'AuthApiError', code: 'sms_send_failed', status: 500, message: 'x' }).code,
+    ).toBe('sms_failed');
+    expect(
+      toAppError({ name: 'AuthApiError', code: 'whatever', status: 400, message: 'x' }).code,
+    ).toBe('auth_failed');
     expect(toAppError({ name: 'AuthRetryableFetchError', message: 'x' }).code).toBe('network');
   });
 
@@ -82,7 +96,9 @@ describe('toAppError', () => {
   });
 
   it('friendlyMessage / isRetryable', () => {
-    expect(friendlyMessage({ code: 'P0001', message: 'uploads_disabled' })).toBe(errorCopy('uploads_disabled').message);
+    expect(friendlyMessage({ code: 'P0001', message: 'uploads_disabled' })).toBe(
+      errorCopy('uploads_disabled').message,
+    );
     expect(isRetryable(new TypeError('Network request failed'))).toBe(true);
     expect(isRetryable({ code: 'P0001', message: 'not_admin' })).toBe(false);
   });

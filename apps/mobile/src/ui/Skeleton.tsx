@@ -20,14 +20,24 @@ export interface SkeletonProps {
 }
 
 /** Shimmering placeholder block. Static when the OS asks to reduce motion. */
-export function Skeleton({ width = '100%', height = 16, radius = 10, style, className }: SkeletonProps) {
+export function Skeleton({
+  width = '100%',
+  height = 16,
+  radius = 10,
+  style,
+  className,
+}: SkeletonProps) {
   const [w, setW] = useState(0);
   const x = useSharedValue(0);
   const reduce = useReducedMotion();
 
   useEffect(() => {
     if (reduce) return;
-    x.value = withRepeat(withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.quad) }), -1, false);
+    x.value = withRepeat(
+      withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.quad) }),
+      -1,
+      false,
+    );
   }, [reduce, x]);
 
   const band = useAnimatedStyle(() => ({

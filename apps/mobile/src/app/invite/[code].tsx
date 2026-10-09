@@ -33,7 +33,13 @@ import {
   useColors,
 } from '@/ui';
 
-const DEAD_END_CODES = new Set(['invite_expired', 'invite_revoked', 'invite_full', 'invite_not_found', 'not_found']);
+const DEAD_END_CODES = new Set([
+  'invite_expired',
+  'invite_revoked',
+  'invite_full',
+  'invite_not_found',
+  'not_found',
+]);
 
 function deadEndFor(status: string, host: string | null): EdgeContent {
   switch (status) {
@@ -118,7 +124,8 @@ export default function JoinInvite() {
 
   // Coming back from sign-up with a pending invite: join straight away (the person already chose).
   useEffect(() => {
-    if (params.autojoin !== '1' || autoJoined.current || !session || !data || data.status !== 'ok') return;
+    if (params.autojoin !== '1' || autoJoined.current || !session || !data || data.status !== 'ok')
+      return;
     if (data.viewer?.is_member || data.viewer?.request_pending) return;
     autoJoined.current = true;
     void join();
@@ -137,8 +144,15 @@ export default function JoinInvite() {
   // ---------- Loading ----------
   if (preview.isLoading) {
     return (
-      <View className="flex-1 bg-paper dark:bg-paper-dark" accessibilityLabel="Loading invite" accessibilityState={{ busy: true }}>
-        <View className="rounded-b-[40px] bg-tint-lime px-5 pb-6 dark:bg-tint-lime-dark" style={{ paddingTop: insets.top + 12 }}>
+      <View
+        className="flex-1 bg-paper dark:bg-paper-dark"
+        accessibilityLabel="Loading invite"
+        accessibilityState={{ busy: true }}
+      >
+        <View
+          className="rounded-b-[40px] bg-tint-lime px-5 pb-6 dark:bg-tint-lime-dark"
+          style={{ paddingTop: insets.top + 12 }}
+        >
           <View className="flex-row items-center justify-between">
             <Skeleton width={160} height={20} radius={999} />
             <IconButton icon="close" label="Close" onPress={goBack} />
@@ -174,7 +188,10 @@ export default function JoinInvite() {
         : null;
 
   const screenState = (content: EdgeContent, primary: () => void, secondary?: () => void) => (
-    <View className="flex-1 bg-paper dark:bg-paper-dark" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+    <View
+      className="flex-1 bg-paper dark:bg-paper-dark"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
       <View className="flex-row justify-end px-4 py-1">
         <IconButton icon="close" label="Close" onPress={goBack} />
       </View>
@@ -184,8 +201,14 @@ export default function JoinInvite() {
         tone={content.tone}
         title={content.title}
         body={content.body}
-        primary={content.primaryLabel ? { label: content.primaryLabel, onPress: primary } : undefined}
-        secondary={content.secondaryLabel && secondary ? { label: content.secondaryLabel, onPress: secondary } : undefined}
+        primary={
+          content.primaryLabel ? { label: content.primaryLabel, onPress: primary } : undefined
+        }
+        secondary={
+          content.secondaryLabel && secondary
+            ? { label: content.secondaryLabel, onPress: secondary }
+            : undefined
+        }
       />
     </View>
   );
@@ -201,7 +224,11 @@ export default function JoinInvite() {
   }
   const title = titleOf(data);
   if (declined) {
-    return screenState(edge.inviteDeclined(title), () => usePendingInvite.getState().undecline(code), goHome);
+    return screenState(
+      edge.inviteDeclined(title),
+      () => usePendingInvite.getState().undecline(code),
+      goHome,
+    );
   }
   if (requested || data.viewer?.request_pending) {
     return screenState(edge.requested(title), goHome);
@@ -215,17 +242,29 @@ export default function JoinInvite() {
     { art: 'beach', stamp: stampFor(roll?.starts_on) },
     { art: 'sunset', stamp: stampFor(roll?.starts_on, 1) },
     data.cover_url && !sealed
-      ? { uri: data.cover_url, cacheKey: data.cover_thumb_key ?? undefined, stamp: stampFor(roll?.ends_on) }
+      ? {
+          uri: data.cover_url,
+          cacheKey: data.cover_thumb_key ?? undefined,
+          stamp: stampFor(roll?.ends_on),
+        }
       : { art: 'party', stamp: stampFor(roll?.ends_on), blurred: sealed },
   ];
   const meta =
     data.kind === 'roll' && roll
-      ? [formatDateRange(roll.starts_on, roll.ends_on), roll.photo_count > 0 ? pluralize(roll.photo_count, 'photo') : null]
+      ? [
+          formatDateRange(roll.starts_on, roll.ends_on),
+          roll.photo_count > 0 ? pluralize(roll.photo_count, 'photo') : null,
+        ]
           .filter(Boolean)
           .join(' · ')
       : pluralize(data.member_count, 'member');
   const revealText = roll?.reveal_at
-    ? new Date(roll.reveal_at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+    ? new Date(roll.reveal_at).toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
     : null;
 
   const rows: { icon: IconName; text: string }[] = [
@@ -246,8 +285,16 @@ export default function JoinInvite() {
           : "You'll see every Roll in this Crew, plus its chat",
     },
   ];
-  if (sealed) rows.push({ icon: 'clock', text: `Photos stay sealed${revealText ? ` until ${revealText}` : ''}. Everyone sees them at the same moment.` });
-  if (data.requires_approval) rows.push({ icon: 'users', text: "A host approves new people. We'll tell you when you're in." });
+  if (sealed)
+    rows.push({
+      icon: 'clock',
+      text: `Photos stay sealed${revealText ? ` until ${revealText}` : ''}. Everyone sees them at the same moment.`,
+    });
+  if (data.requires_approval)
+    rows.push({
+      icon: 'users',
+      text: "A host approves new people. We'll tell you when you're in.",
+    });
 
   const isMember = !!data.viewer?.is_member;
   const joinLabel = data.kind === 'roll' ? 'Join Roll' : 'Join Crew';
@@ -255,11 +302,19 @@ export default function JoinInvite() {
 
   return (
     <View className="flex-1 bg-paper dark:bg-paper-dark">
-      <ScrollView contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-        <View className={`rounded-b-[40px] px-5 pb-4 ${TINT_BG[tint]}`} style={{ paddingTop: insets.top + 8 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 24 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          className={`rounded-b-[40px] px-5 pb-4 ${TINT_BG[tint]}`}
+          style={{ paddingTop: insets.top + 8 }}
+        >
           <View className="flex-row items-center justify-between">
             <View className="flex-1 flex-row items-center gap-2.5 pr-2">
-              {data.host ? <Avatar name={data.host.display_name} uri={data.host.avatar_url} size={36} /> : null}
+              {data.host ? (
+                <Avatar name={data.host.display_name} uri={data.host.avatar_url} size={36} />
+              ) : null}
               <Text variant="body" tone="default" numberOfLines={1} className="flex-1">
                 <Text variant="body" tone="default" className="font-body-bold">
                   {host ?? 'Someone'}
@@ -272,8 +327,14 @@ export default function JoinInvite() {
           <View className="mt-2">
             <DumpStack cards={cards} aspectRatio={1.35} cardAspect={0.95}>
               {sealed ? (
-                <View className="absolute inset-0 items-center justify-center" style={{ zIndex: 10 }}>
-                  <View className="flex-row items-center gap-2 rounded-pill px-4 py-2" style={{ backgroundColor: INK }}>
+                <View
+                  className="absolute inset-0 items-center justify-center"
+                  style={{ zIndex: 10 }}
+                >
+                  <View
+                    className="flex-row items-center gap-2 rounded-pill px-4 py-2"
+                    style={{ backgroundColor: INK }}
+                  >
                     <Icon name="lock" size={16} color={FLASH} />
                     <Text variant="stamp" style={{ color: FLASH }}>
                       {revealText ? `SEALED UNTIL ${revealText.toUpperCase()}` : 'SEALED'}
@@ -287,7 +348,9 @@ export default function JoinInvite() {
 
         <View className="px-5 pt-5">
           <Text variant="stamp" tone="tertiary" className="text-[12px]">
-            {data.crew?.name ? `${data.crew.name} · ${data.kind === 'roll' ? 'ROLL' : 'CREW'}` : data.kind.toUpperCase()}
+            {data.crew?.name
+              ? `${data.crew.name} · ${data.kind === 'roll' ? 'ROLL' : 'CREW'}`
+              : data.kind.toUpperCase()}
           </Text>
           <Text variant="display" heading className="mt-1" numberOfLines={3}>
             {title}
@@ -297,7 +360,11 @@ export default function JoinInvite() {
               {meta}
             </Text>
             <Facepile
-              people={data.facepile.map((p) => ({ name: p.display_name, avatarUrl: p.avatar_url, ring: p.ring_color }))}
+              people={data.facepile.map((p) => ({
+                name: p.display_name,
+                avatarUrl: p.avatar_url,
+                ring: p.ring_color,
+              }))}
               total={data.member_count}
             />
           </View>
@@ -309,7 +376,10 @@ export default function JoinInvite() {
 
           <View className="mt-5">
             {rows.map((r, i) => (
-              <View key={i} className="flex-row items-center gap-3 border-t border-line py-3.5 dark:border-line-dark">
+              <View
+                key={i}
+                className="flex-row items-center gap-3 border-t border-line py-3.5 dark:border-line-dark"
+              >
                 <Icon name={r.icon} size={20} color={colors.ink} />
                 <Text variant="body" tone="default" className="flex-1">
                   {r.text}
@@ -322,7 +392,12 @@ export default function JoinInvite() {
 
       <View className="px-5 pt-2" style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
         {joinError ? (
-          <Text variant="caption" tone="danger" className="mb-2 text-center" accessibilityLiveRegion="polite">
+          <Text
+            variant="caption"
+            tone="danger"
+            className="mb-2 text-center"
+            accessibilityLiveRegion="polite"
+          >
             {errorCopy(joinError.code).message}
           </Text>
         ) : null}
@@ -331,7 +406,11 @@ export default function JoinInvite() {
             label={data.kind === 'roll' ? 'Open Roll' : 'Open Crew'}
             variant="primary"
             size="lg"
-            onPress={() => router.replace(joinedHref({ crew_id: data.crew?.id ?? '', roll_id: data.roll?.id ?? null }))}
+            onPress={() =>
+              router.replace(
+                joinedHref({ crew_id: data.crew?.id ?? '', roll_id: data.roll?.id ?? null }),
+              )
+            }
           />
         ) : (
           <Button
@@ -340,7 +419,11 @@ export default function JoinInvite() {
             size="lg"
             loading={joining}
             disabled={guestBlocked}
-            disabledReason={guestBlocked ? 'Guests can only join Rolls that allow guests. Sign up with your number to join.' : undefined}
+            disabledReason={
+              guestBlocked
+                ? 'Guests can only join Rolls that allow guests. Sign up with your number to join.'
+                : undefined
+            }
             onPress={() => void join()}
           />
         )}

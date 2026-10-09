@@ -7,7 +7,8 @@ import { PressableScale } from './PressableScale';
 import { Text } from './Text';
 import { FLASH, INK, SHUTTER } from './theme';
 
-export type PhotoTileState = 'default' | 'selected' | 'uploading' | 'failed' | 'duplicate' | 'sealed';
+export type PhotoTileState =
+  'default' | 'selected' | 'uploading' | 'failed' | 'duplicate' | 'sealed';
 
 export interface PhotoTileProps {
   /** Photo id: resolves the signed URL (batched) and is used for expo-image `cacheKey`/`recyclingKey`. */
@@ -43,7 +44,14 @@ function ProgressRing({ progress }: { progress?: number }) {
   const p = progress === undefined ? 0.28 : Math.min(1, Math.max(0, progress));
   return (
     <Svg width={RING} height={RING} viewBox={`0 0 ${RING} ${RING}`}>
-      <Circle cx={RING / 2} cy={RING / 2} r={RING_R} stroke="rgba(255,255,255,0.35)" strokeWidth={RING_STROKE} fill="none" />
+      <Circle
+        cx={RING / 2}
+        cy={RING / 2}
+        r={RING_R}
+        stroke="rgba(255,255,255,0.35)"
+        strokeWidth={RING_STROKE}
+        fill="none"
+      />
       <Circle
         cx={RING / 2}
         cy={RING / 2}
@@ -159,7 +167,11 @@ export function PhotoTile({
       ) : selectable && state === 'default' ? (
         <View
           className="absolute right-1.5 top-1.5 h-6 w-6 rounded-pill"
-          style={{ borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', backgroundColor: 'rgba(0,0,0,0.15)' }}
+          style={{
+            borderWidth: 2,
+            borderColor: 'rgba(255,255,255,0.9)',
+            backgroundColor: 'rgba(0,0,0,0.15)',
+          }}
         />
       ) : null}
     </View>
@@ -171,7 +183,14 @@ export function PhotoTile({
         accessibilityRole="button"
         accessibilityLabel="Retry upload"
         onPress={onRetry ?? onPress}
-        wrapperStyle={{ position: 'absolute', right: -8, top: -8, minHeight: 44, minWidth: 44, alignItems: 'center' }}
+        wrapperStyle={{
+          position: 'absolute',
+          right: -8,
+          top: -8,
+          minHeight: 44,
+          minWidth: 44,
+          alignItems: 'center',
+        }}
         className="h-7 w-7 items-center justify-center rounded-pill"
         style={{ backgroundColor: SHUTTER }}
       >

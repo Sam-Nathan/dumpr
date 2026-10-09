@@ -24,7 +24,15 @@ import { configureNotifications } from '../features/notifications/register';
 import { setUploadQueryClient, startUploadWorker } from '../features/uploads';
 import { inviteHref } from '../lib/deeplinks';
 import { fontMap } from '../lib/fonts';
-import { DialogHost, EdgeState, edge, ToastHost, useColors, useScheme, useSheetOptions } from '../ui';
+import {
+  DialogHost,
+  EdgeState,
+  edge,
+  ToastHost,
+  useColors,
+  useScheme,
+  useSheetOptions,
+} from '../ui';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -141,8 +149,18 @@ function RootStack({ state }: { state: AuthGateState }) {
         <Stack.Screen name="(main)" />
         <Stack.Screen name="crew/[id]" />
         <Stack.Screen name="roll/[id]" />
-        <Stack.Screen name="photo/[id]" options={{ presentation: 'modal', contentStyle: { backgroundColor: '#000' } }} />
-        <Stack.Screen name="camera" options={{ presentation: 'fullScreenModal', animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
+        <Stack.Screen
+          name="photo/[id]"
+          options={{ presentation: 'modal', contentStyle: { backgroundColor: '#000' } }}
+        />
+        <Stack.Screen
+          name="camera"
+          options={{
+            presentation: 'fullScreenModal',
+            animation: 'fade',
+            contentStyle: { backgroundColor: '#000' },
+          }}
+        />
         <Stack.Screen name="import" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="uploads" />
         <Stack.Screen name="chat/[thread]" />

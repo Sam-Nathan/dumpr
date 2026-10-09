@@ -35,7 +35,13 @@ export function Dialog({
   onCancel,
 }: DialogProps) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel} statusBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+      statusBarTranslucent
+    >
       <View className="flex-1 items-center justify-center bg-black/50 px-6">
         <Pressable
           accessibilityLabel="Dismiss"
@@ -68,7 +74,10 @@ export function Dialog({
   );
 }
 
-interface DialogRequest extends Omit<DialogProps, 'visible' | 'onConfirm' | 'onCancel' | 'loading'> {
+interface DialogRequest extends Omit<
+  DialogProps,
+  'visible' | 'onConfirm' | 'onCancel' | 'loading'
+> {
   resolve: (confirmed: boolean) => void;
 }
 

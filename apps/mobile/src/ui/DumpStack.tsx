@@ -72,7 +72,16 @@ const LAYOUTS: Record<number, Slot[]> = {
 function Circle({ size, color, style }: { size: DimensionValue; color: string; style: object }) {
   return (
     <View
-      style={[{ position: 'absolute', width: size, aspectRatio: 1, borderRadius: 999, backgroundColor: color }, style]}
+      style={[
+        {
+          position: 'absolute',
+          width: size,
+          aspectRatio: 1,
+          borderRadius: 999,
+          backgroundColor: color,
+        },
+        style,
+      ]}
     />
   );
 }
@@ -84,16 +93,52 @@ export function SampleArtwork({ art }: { art: SampleArt }) {
       return (
         <View style={{ flex: 1, backgroundColor: '#8AD3FF' }}>
           <Circle size="22%" color="#FFFFFF" style={{ left: '18%', top: '22%' }} />
-          <View style={{ position: 'absolute', left: 0, right: 0, top: '62%', height: '10%', backgroundColor: '#2E8FB8' }} />
-          <View style={{ position: 'absolute', left: 0, right: 0, top: '72%', bottom: 0, backgroundColor: '#F2D9A0' }} />
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: '62%',
+              height: '10%',
+              backgroundColor: '#2E8FB8',
+            }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: '72%',
+              bottom: 0,
+              backgroundColor: '#F2D9A0',
+            }}
+          />
         </View>
       );
     case 'sunset':
       return (
         <View style={{ flex: 1, backgroundColor: '#F4A27C' }}>
           <Circle size="26%" color="#F7C873" style={{ right: '16%', top: '22%' }} />
-          <View style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: '8%', backgroundColor: '#E8835A' }} />
-          <View style={{ position: 'absolute', left: 0, right: 0, top: '58%', bottom: 0, backgroundColor: '#2F4A3A' }} />
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: '50%',
+              height: '8%',
+              backgroundColor: '#E8835A',
+            }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: '58%',
+              bottom: 0,
+              backgroundColor: '#2F4A3A',
+            }}
+          />
         </View>
       );
     case 'party':

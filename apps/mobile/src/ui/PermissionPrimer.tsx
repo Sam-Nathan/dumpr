@@ -33,11 +33,16 @@ interface PrimerCopy {
   illustrationIcon: IconName;
 }
 
-export function primerCopy(kind: PrimerKind, ctx?: { rollName?: string; dates?: string }): PrimerCopy {
+export function primerCopy(
+  kind: PrimerKind,
+  ctx?: { rollName?: string; dates?: string },
+): PrimerCopy {
   switch (kind) {
     case 'photos':
       return {
-        title: ctx?.rollName ? `Let Dumpr find your ${ctx.rollName} photos` : 'Let Dumpr find your photos',
+        title: ctx?.rollName
+          ? `Let Dumpr find your ${ctx.rollName} photos`
+          : 'Let Dumpr find your photos',
         subtitle: "Your phone will ask next. Here's exactly what that means.",
         bullets: [
           {
@@ -48,10 +53,21 @@ export function primerCopy(kind: PrimerKind, ctx?: { rollName?: string; dates?: 
               '.',
             ],
           },
-          { icon: 'upload', parts: ['Nothing uploads until ', { b: 'you tap Add' }, '. You review every photo first.'] },
+          {
+            icon: 'upload',
+            parts: [
+              'Nothing uploads until ',
+              { b: 'you tap Add' },
+              '. You review every photo first.',
+            ],
+          },
           {
             icon: 'lock',
-            parts: ['Prefer tighter control? Choose ', { b: 'Select photos' }, ' — everything still works.'],
+            parts: [
+              'Prefer tighter control? Choose ',
+              { b: 'Select photos' },
+              ' — everything still works.',
+            ],
           },
         ],
         allow: 'Allow access',
@@ -63,9 +79,30 @@ export function primerCopy(kind: PrimerKind, ctx?: { rollName?: string; dates?: 
         title: 'Let Dumpr use your camera',
         subtitle: "Your phone will ask next. Here's exactly what that means.",
         bullets: [
-          { icon: 'camera', parts: ['The camera opens ', { b: 'only when you open it' }, '. Nothing is captured in the background.'] },
-          { icon: 'upload', parts: ['A shot goes to your Roll ', { b: 'when you tap the shutter' }, ', with a 5 second Undo.'] },
-          { icon: 'image', parts: ['Rather not? ', { b: 'Add from your gallery' }, ' instead — everything still works.'] },
+          {
+            icon: 'camera',
+            parts: [
+              'The camera opens ',
+              { b: 'only when you open it' },
+              '. Nothing is captured in the background.',
+            ],
+          },
+          {
+            icon: 'upload',
+            parts: [
+              'A shot goes to your Roll ',
+              { b: 'when you tap the shutter' },
+              ', with a 5 second Undo.',
+            ],
+          },
+          {
+            icon: 'image',
+            parts: [
+              'Rather not? ',
+              { b: 'Add from your gallery' },
+              ' instead — everything still works.',
+            ],
+          },
         ],
         allow: 'Allow camera',
         illustrationLabel: 'YOUR SHOT #1',
@@ -76,9 +113,15 @@ export function primerCopy(kind: PrimerKind, ctx?: { rollName?: string; dates?: 
         title: 'Find friends already on Dumpr',
         subtitle: "Your phone will ask next. Here's exactly what that means.",
         bullets: [
-          { icon: 'lock', parts: ['Numbers are matched privately and ', { b: 'never stored' }, '.'] },
+          {
+            icon: 'lock',
+            parts: ['Numbers are matched privately and ', { b: 'never stored' }, '.'],
+          },
           { icon: 'chat', parts: ['We ', { b: 'never message anyone' }, ' for you.'] },
-          { icon: 'link', parts: ['Skip it any time — ', { b: 'links and QR codes' }, ' always work.'] },
+          {
+            icon: 'link',
+            parts: ['Skip it any time — ', { b: 'links and QR codes' }, ' always work.'],
+          },
         ],
         allow: 'Allow contacts',
         illustrationLabel: 'FRIENDS ON DUMPR',
@@ -89,9 +132,18 @@ export function primerCopy(kind: PrimerKind, ctx?: { rollName?: string; dates?: 
         title: 'Hear when your people add photos',
         subtitle: "Your phone will ask next. Here's exactly what that means.",
         bullets: [
-          { icon: 'bell', parts: [{ b: 'Invites, mentions and reveals' }, ' arrive straight away.'] },
-          { icon: 'clock', parts: ['Photo uploads are ', { b: 'batched hourly' }, ', never one ping per photo.'] },
-          { icon: 'bellOff', parts: ['Turn any type off later in ', { b: 'Privacy & safety' }, '.'] },
+          {
+            icon: 'bell',
+            parts: [{ b: 'Invites, mentions and reveals' }, ' arrive straight away.'],
+          },
+          {
+            icon: 'clock',
+            parts: ['Photo uploads are ', { b: 'batched hourly' }, ', never one ping per photo.'],
+          },
+          {
+            icon: 'bellOff',
+            parts: ['Turn any type off later in ', { b: 'Privacy & safety' }, '.'],
+          },
         ],
         allow: 'Allow notifications',
         illustrationLabel: '1 NEW INVITE',
@@ -107,7 +159,12 @@ export function PrimerIllustration({ label, icon }: { label: string; icon: IconN
   return (
     <View
       className="items-center justify-center rounded-[28px] p-4"
-      style={{ backgroundColor: INK, transform: [{ rotate: '-4deg' }], width: 260, alignSelf: 'center' }}
+      style={{
+        backgroundColor: INK,
+        transform: [{ rotate: '-4deg' }],
+        width: 260,
+        alignSelf: 'center',
+      }}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
@@ -192,7 +249,10 @@ export function PermissionPrimer({
   useEffect(() => {
     if (!denied || !check) return undefined;
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') void check().then(handle).catch(() => undefined);
+      if (s === 'active')
+        void check()
+          .then(handle)
+          .catch(() => undefined);
     });
     return () => sub.remove();
   }, [denied, check, handle]);
@@ -239,13 +299,31 @@ export function PermissionPrimer({
             title={deniedContent.title}
             body={deniedContent.body}
             primary={{ label: 'Open Settings', onPress: () => void Linking.openSettings() }}
-            secondary={onPickManually ? { label: deniedContent.secondaryLabel ?? 'Pick manually', onPress: onPickManually } : undefined}
+            secondary={
+              onPickManually
+                ? {
+                    label: deniedContent.secondaryLabel ?? 'Pick manually',
+                    onPress: onPickManually,
+                  }
+                : undefined
+            }
           />
         ) : (
           <>
-            <Button label={copy.allow} variant="primary" size="lg" loading={busy} onPress={() => void allow()} />
+            <Button
+              label={copy.allow}
+              variant="primary"
+              size="lg"
+              loading={busy}
+              onPress={() => void allow()}
+            />
             {onPickManually ? (
-              <Button label={pickManuallyLabel} variant="secondary" size="lg" onPress={onPickManually} />
+              <Button
+                label={pickManuallyLabel}
+                variant="secondary"
+                size="lg"
+                onPress={onPickManually}
+              />
             ) : null}
           </>
         )}

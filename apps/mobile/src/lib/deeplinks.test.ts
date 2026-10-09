@@ -3,10 +3,22 @@ import { inviteHref, inviteUrl, parseInviteLink, rewriteIncomingPath } from './d
 
 describe('parseInviteLink', () => {
   it('parses web links', () => {
-    expect(parseInviteLink('https://dumpr.app/r/k7qm2xpa9d')).toEqual({ code: 'k7qm2xpa9d', kind: 'roll' });
-    expect(parseInviteLink('https://www.dumpr.app/c/ABCdef2345?utm=wa')).toEqual({ code: 'abcdef2345', kind: 'crew' });
-    expect(parseInviteLink('dumpr.app/r/k7qm2xpa9d/')).toEqual({ code: 'k7qm2xpa9d', kind: 'roll' });
-    expect(parseInviteLink('  http://dumpr.app/r/k7qm2xpa9d  ')).toEqual({ code: 'k7qm2xpa9d', kind: 'roll' });
+    expect(parseInviteLink('https://dumpr.app/r/k7qm2xpa9d')).toEqual({
+      code: 'k7qm2xpa9d',
+      kind: 'roll',
+    });
+    expect(parseInviteLink('https://www.dumpr.app/c/ABCdef2345?utm=wa')).toEqual({
+      code: 'abcdef2345',
+      kind: 'crew',
+    });
+    expect(parseInviteLink('dumpr.app/r/k7qm2xpa9d/')).toEqual({
+      code: 'k7qm2xpa9d',
+      kind: 'roll',
+    });
+    expect(parseInviteLink('  http://dumpr.app/r/k7qm2xpa9d  ')).toEqual({
+      code: 'k7qm2xpa9d',
+      kind: 'roll',
+    });
   });
 
   it('parses app-scheme links and router paths', () => {
@@ -40,7 +52,9 @@ describe('rewriteIncomingPath', () => {
   });
   it('leaves other paths alone', () => {
     expect(rewriteIncomingPath('/roll/123')).toBe('/roll/123');
-    expect(rewriteIncomingPath('dumpr://auth/callback?code=abc')).toBe('dumpr://auth/callback?code=abc');
+    expect(rewriteIncomingPath('dumpr://auth/callback?code=abc')).toBe(
+      'dumpr://auth/callback?code=abc',
+    );
     expect(rewriteIncomingPath('k7qm2xpa9d')).toBe('k7qm2xpa9d');
   });
   it('builds hrefs and urls', () => {

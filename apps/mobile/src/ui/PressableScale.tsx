@@ -4,8 +4,10 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { haptic } from './haptics';
 import { MIN_TARGET, PRESS_MS, PRESS_SCALE } from './theme';
 
-export interface PressableScaleProps
-  extends Omit<PressableProps, 'style' | 'children' | 'className'> {
+export interface PressableScaleProps extends Omit<
+  PressableProps,
+  'style' | 'children' | 'className'
+> {
   /** Classes for the visible surface (background, radius, padding, size). */
   className?: string;
   /** Layout style for the touch area wrapper (flex, alignSelf, margin). */
@@ -42,7 +44,10 @@ export function PressableScale({
     <Pressable
       disabled={disabled}
       hitSlop={hitSlop ?? 6}
-      style={[{ minHeight: MIN_TARGET, minWidth: MIN_TARGET, justifyContent: 'center' }, wrapperStyle]}
+      style={[
+        { minHeight: MIN_TARGET, minWidth: MIN_TARGET, justifyContent: 'center' },
+        wrapperStyle,
+      ]}
       onPressIn={(e) => {
         scale.value = withTiming(scaleTo, { duration: PRESS_MS });
         if (haptics) haptic.tap();

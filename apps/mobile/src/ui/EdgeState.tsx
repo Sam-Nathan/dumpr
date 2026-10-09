@@ -69,7 +69,11 @@ export function EdgeState({
   primaryVariant = 'primary',
 }: EdgeStateProps) {
   const actions = (
-    <View className={layout === 'screen' ? 'mt-6 w-full gap-1' : 'mt-3 flex-row flex-wrap items-center gap-x-2'}>
+    <View
+      className={
+        layout === 'screen' ? 'mt-6 w-full gap-1' : 'mt-3 flex-row flex-wrap items-center gap-x-2'
+      }
+    >
       {primary ? (
         <Button
           label={primary.label}

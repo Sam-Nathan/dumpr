@@ -333,7 +333,11 @@ export function parseFunctionError(body: unknown, status?: number): AppError | n
   if (!body || typeof body !== 'object') return null;
   const env = (body as { error?: unknown }).error;
   if (!env || typeof env !== 'object') return null;
-  const { code, message, details } = env as { code?: unknown; message?: unknown; details?: unknown };
+  const { code, message, details } = env as {
+    code?: unknown;
+    message?: unknown;
+    details?: unknown;
+  };
   if (typeof code !== 'string' || !code) return null;
   return new AppError(code, typeof message === 'string' ? message : code, { status, details });
 }

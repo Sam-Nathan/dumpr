@@ -7,8 +7,13 @@ function setup(opts: { now?: () => number; fail?: boolean } = {}) {
     calls.push(keys);
     if (opts.fail) throw new Error('Network request failed');
     const urls: Record<string, string> = {};
-    for (const k of keys) if (!k.startsWith('gone')) urls[k] = `https://r2/${k}?sig=${calls.length}`;
-    return { urls, unavailable: { 'gone:thumb': 'not_found' }, expires_at: new Date(6 * 3600_000).toISOString() };
+    for (const k of keys)
+      if (!k.startsWith('gone')) urls[k] = `https://r2/${k}?sig=${calls.length}`;
+    return {
+      urls,
+      unavailable: { 'gone:thumb': 'not_found' },
+      expires_at: new Date(6 * 3600_000).toISOString(),
+    };
   });
   const cache = new SignedUrlCache({ fetchBatch, tickMs: 1, now: opts.now ?? (() => 0) });
   return { cache, calls, fetchBatch };

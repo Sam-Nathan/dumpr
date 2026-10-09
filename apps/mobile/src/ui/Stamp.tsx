@@ -25,7 +25,15 @@ const SIZE: Record<number, string> = {
 };
 
 /** Mono, uppercase, shutter-orange date stamp: the "film camera" detail. */
-export function Stamp({ date, text, seconds, time, variant = 'plain', size = 12, className }: StampProps) {
+export function Stamp({
+  date,
+  text,
+  seconds,
+  time,
+  variant = 'plain',
+  size = 12,
+  className,
+}: StampProps) {
   const value = text ?? formatStamp(date, { seconds, time });
   if (!value) return null;
   const label = (

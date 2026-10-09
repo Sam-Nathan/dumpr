@@ -30,7 +30,8 @@ describe('formatBytes', () => {
 describe('formatDateRange', () => {
   it('same month', () => expect(formatDateRange('2026-03-12', '2026-03-15')).toBe('12–15 Mar'));
   it('one day', () => expect(formatDateRange('2026-03-12', '2026-03-12')).toBe('12 Mar'));
-  it('across months', () => expect(formatDateRange('2026-02-28', '2026-03-02')).toBe('28 Feb – 2 Mar'));
+  it('across months', () =>
+    expect(formatDateRange('2026-02-28', '2026-03-02')).toBe('28 Feb – 2 Mar'));
   it('across years', () =>
     expect(formatDateRange('2025-12-28', '2026-01-02')).toBe("28 Dec '25 – 2 Jan '26"));
   it('open ended / none', () => {

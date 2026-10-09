@@ -54,13 +54,27 @@ export function Chip({
   testID,
 }: ChipProps) {
   const dark = useScheme() === 'dark';
-  const effective: ChipTone = selected ? (tone === 'outline' ? 'ink' : tone === 'ink' ? 'lime' : tone) : tone;
+  const effective: ChipTone = selected
+    ? tone === 'outline'
+      ? 'ink'
+      : tone === 'ink'
+        ? 'lime'
+        : tone
+    : tone;
   const onInk = effective === 'ink';
   const darkOutline = onDark && effective === 'outline';
   const textTone = effective === 'lime' ? 'onFlash' : onInk ? 'inverse' : 'default';
   // 'ink' flips to light surface in dark mode, so its text must flip too.
   const labelTone = darkOutline ? 'inverse' : onInk && dark ? 'onFlash' : textTone;
-  const iconColor = darkOutline ? INK_TEXT : effective === 'lime' || (onInk && dark) ? INK : onInk ? INK_TEXT : dark ? INK_TEXT : INK;
+  const iconColor = darkOutline
+    ? INK_TEXT
+    : effective === 'lime' || (onInk && dark)
+      ? INK
+      : onInk
+        ? INK_TEXT
+        : dark
+          ? INK_TEXT
+          : INK;
 
   const content = (
     <View

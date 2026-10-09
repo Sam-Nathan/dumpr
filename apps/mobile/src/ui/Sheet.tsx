@@ -31,8 +31,7 @@ export function useSheetOptions(detents: SheetDetents = 'halfAndFull') {
     headerShown: false,
     presentation: 'formSheet' as const,
     sheetAllowedDetents: (allowed === 'fitToContents' ? 'fitToContents' : [...allowed]) as
-      | number[]
-      | 'fitToContents',
+      number[] | 'fitToContents',
     sheetGrabberVisible: true,
     sheetCornerRadius: 32,
     sheetInitialDetentIndex: 0,
@@ -81,7 +80,8 @@ export function SheetContent({
               </Text>
             ) : null}
           </View>
-          {right ?? (closeButton ? <IconButton icon="close" label="Close" onPress={goBack} /> : null)}
+          {right ??
+            (closeButton ? <IconButton icon="close" label="Close" onPress={goBack} /> : null)}
         </View>
       ) : null}
       {children}

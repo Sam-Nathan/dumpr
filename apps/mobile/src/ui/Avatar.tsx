@@ -25,7 +25,15 @@ export interface AvatarProps {
 }
 
 /** Avatar with initials fallback on a stable "random" crew tint and an optional ring. */
-export function Avatar({ name, uri, avatarKey, size = 40, ring = 'none', tint, badge }: AvatarProps) {
+export function Avatar({
+  name,
+  uri,
+  avatarKey,
+  size = 40,
+  ring = 'none',
+  tint,
+  badge,
+}: AvatarProps) {
   const signed = useAvatarUrl(uri ? null : avatarKey);
   const src = uri ?? signed;
   const ringWidth = ring === 'none' ? 0 : size >= 64 ? 4 : size >= 40 ? 3 : 2;

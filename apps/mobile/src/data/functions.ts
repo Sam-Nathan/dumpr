@@ -73,9 +73,13 @@ export async function callFunction<T>(
   if (!res.ok) {
     throw (
       parseFunctionError(parsed, res.status) ??
-      new AppError(res.status === 429 ? 'rate_limited' : res.status >= 500 ? 'internal' : 'unknown', undefined, {
-        status: res.status,
-      })
+      new AppError(
+        res.status === 429 ? 'rate_limited' : res.status >= 500 ? 'internal' : 'unknown',
+        undefined,
+        {
+          status: res.status,
+        },
+      )
     );
   }
   const envelope = parseFunctionError(parsed, res.status);

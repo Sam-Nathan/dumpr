@@ -11,17 +11,41 @@ export default function EdgeStatesDemo() {
     { content: edge.inviteRevoked('Kabir'), primary: noop, secondary: () => router.replace('/') },
     { content: edge.inviteFull('Kabir'), primary: noop, secondary: () => router.replace('/') },
     { content: edge.inviteNotFound(), primary: noop, secondary: () => router.replace('/') },
-    { content: edge.inviteDeclined("Mood Indigo '26"), primary: noop, secondary: () => router.replace('/') },
+    {
+      content: edge.inviteDeclined("Mood Indigo '26"),
+      primary: noop,
+      secondary: () => router.replace('/'),
+    },
     { content: edge.requested("Goa '26"), primary: noop },
-    { content: edge.permissionDenied('photos'), primary: () => void Linking.openSettings(), secondary: noop },
-    { content: edge.permissionDenied('camera'), primary: () => void Linking.openSettings(), secondary: noop },
-    { content: edge.permissionDenied('notifications'), primary: () => void Linking.openSettings(), secondary: noop },
+    {
+      content: edge.permissionDenied('photos'),
+      primary: () => void Linking.openSettings(),
+      secondary: noop,
+    },
+    {
+      content: edge.permissionDenied('camera'),
+      primary: () => void Linking.openSettings(),
+      secondary: noop,
+    },
+    {
+      content: edge.permissionDenied('notifications'),
+      primary: () => void Linking.openSettings(),
+      secondary: noop,
+    },
     { content: edge.uploadsFailed(3), primary: noop },
     { content: edge.photoRemoved('Diya'), primary: noop },
-    { content: edge.crewDeleted('Goa Gang', 'Aarav'), primary: noop, secondary: () => router.replace('/') },
+    {
+      content: edge.crewDeleted('Goa Gang', 'Aarav'),
+      primary: noop,
+      secondary: () => router.replace('/'),
+    },
     { content: edge.removedFromCrew('Goa Gang', 'Aarav'), primary: () => router.replace('/') },
     { content: edge.offline(), primary: noop },
-    { content: edge.fromError({ code: 'P0001', message: 'uploads_disabled' }), primary: noop, secondary: noop },
+    {
+      content: edge.fromError({ code: 'P0001', message: 'uploads_disabled' }),
+      primary: noop,
+      secondary: noop,
+    },
   ];
   return (
     <Screen scroll header={{ back: true, title: 'Edge states' }}>
@@ -39,8 +63,16 @@ export default function EdgeStatesDemo() {
             tone={content.tone}
             title={content.title}
             body={content.body}
-            primary={content.primaryLabel && primary ? { label: content.primaryLabel, onPress: primary } : undefined}
-            secondary={content.secondaryLabel && secondary ? { label: content.secondaryLabel, onPress: secondary } : undefined}
+            primary={
+              content.primaryLabel && primary
+                ? { label: content.primaryLabel, onPress: primary }
+                : undefined
+            }
+            secondary={
+              content.secondaryLabel && secondary
+                ? { label: content.secondaryLabel, onPress: secondary }
+                : undefined
+            }
           />
         ))}
       </View>

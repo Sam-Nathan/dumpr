@@ -27,7 +27,11 @@ export default function Home() {
     <View className="flex-1 bg-paper dark:bg-paper-dark">
       <ScrollView
         ref={scroll}
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: clearance, paddingHorizontal: 16 }}
+        contentContainerStyle={{
+          paddingTop: insets.top + 8,
+          paddingBottom: clearance,
+          paddingHorizontal: 16,
+        }}
       >
         <View className="flex-row items-center justify-between">
           <PressableScale
@@ -35,10 +39,21 @@ export default function Home() {
             accessibilityLabel="You: profile and settings"
             onPress={() => router.push('/you')}
           >
-            <Avatar name={name} avatarKey={profile.data?.avatar_key} ring={profile.data?.ring_color ?? 'lime'} size={48} />
+            <Avatar
+              name={name}
+              avatarKey={profile.data?.avatar_key}
+              ring={profile.data?.ring_color ?? 'lime'}
+              size={48}
+            />
           </PressableScale>
           {!isGuest ? (
-            <Button label="New" icon="plus" variant="strong" size="sm" onPress={() => router.push('/sheets/create')} />
+            <Button
+              label="New"
+              icon="plus"
+              variant="strong"
+              size="sm"
+              onPress={() => router.push('/sheets/create')}
+            />
           ) : null}
         </View>
         <Text variant="display" heading className="mt-4">
@@ -52,13 +67,26 @@ export default function Home() {
             One place for your people and every photo from every plan.
           </Text>
           <View className="my-2 w-full">
-            <DumpStack aspectRatio={2} cardAspect={0.9} cards={[{ art: 'beach' }, { art: 'sunset' }, { art: 'party' }]} />
+            <DumpStack
+              aspectRatio={2}
+              cardAspect={0.9}
+              cards={[{ art: 'beach' }, { art: 'sunset' }, { art: 'party' }]}
+            />
           </View>
           <View className="flex-row flex-wrap gap-2">
             {!isGuest ? (
-              <Button label="Start a Crew" variant="strong" onPress={() => router.push('/sheets/create')} />
+              <Button
+                label="Start a Crew"
+                variant="strong"
+                onPress={() => router.push('/sheets/create')}
+              />
             ) : null}
-            <Button label="Got a link?" icon="link" variant="secondary" onPress={() => setLinkOpen(true)} />
+            <Button
+              label="Got a link?"
+              icon="link"
+              variant="secondary"
+              onPress={() => setLinkOpen(true)}
+            />
           </View>
         </View>
       </ScrollView>

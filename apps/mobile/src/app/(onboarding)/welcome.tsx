@@ -41,7 +41,10 @@ export default function Welcome() {
               { art: 'party', stamp: "31 12 '25" },
             ]}
           >
-            <View className="absolute bottom-[14%] left-0" style={{ zIndex: 10, transform: [{ rotate: '-5deg' }] }}>
+            <View
+              className="absolute bottom-[14%] left-0"
+              style={{ zIndex: 10, transform: [{ rotate: '-5deg' }] }}
+            >
               <View className="rounded-pill bg-flash px-3 py-1.5">
                 <Text variant="caption" tone="onFlash" className="font-body-bold">
                   from 9 phones
@@ -52,7 +55,12 @@ export default function Welcome() {
         </View>
 
         <View className="mt-4">
-          <View className="flex-row items-center gap-3" accessible accessibilityRole="header" accessibilityLabel="dumpr">
+          <View
+            className="flex-row items-center gap-3"
+            accessible
+            accessibilityRole="header"
+            accessibilityLabel="dumpr"
+          >
             <LogoMark size={52} />
             <Text
               variant="displayXl"
@@ -80,7 +88,12 @@ export default function Welcome() {
               {pending.title ? ` to ${pending.title}` : ''}. Get started to join.
             </Text>
           ) : null}
-          <Button label="Get started" variant="primary" size="lg" onPress={() => router.push('/phone')} />
+          <Button
+            label="Get started"
+            variant="primary"
+            size="lg"
+            onPress={() => router.push('/phone')}
+          />
           <Button
             label="I have an invite link"
             icon="link"

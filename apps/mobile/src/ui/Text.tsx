@@ -2,13 +2,7 @@ import type { ReactNode } from 'react';
 import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
 
 export type TextVariant =
-  | 'displayXl'
-  | 'display'
-  | 'title'
-  | 'heading'
-  | 'body'
-  | 'caption'
-  | 'stamp';
+  'displayXl' | 'display' | 'title' | 'heading' | 'body' | 'caption' | 'stamp';
 
 export type TextTone =
   | 'default'
