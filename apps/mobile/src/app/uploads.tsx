@@ -34,7 +34,7 @@ import {
   PressableScale,
   Screen,
   Text,
-  Toggle,
+  ToggleSwitch,
   useColors,
 } from '@/ui';
 
@@ -180,7 +180,7 @@ export default function UploadsScreen() {
                   Upload on Wi-Fi only
                 </Text>
               </View>
-              <Toggle
+              <ToggleSwitch
                 label="Upload on Wi-Fi only"
                 value={queue.wifiOnly}
                 onValueChange={setWifiOnly}

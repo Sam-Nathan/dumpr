@@ -3,27 +3,27 @@ import { haptic } from './haptics';
 import { PressableScale } from './PressableScale';
 import { Text } from './Text';
 
-export interface SegmentedOption<T extends string> {
+export interface SegmentedTabsOption<T extends string> {
   value: T;
   label: string;
   /** Count badge after the label ("Chats 3"). Hidden when 0 / undefined. */
   count?: number;
 }
 
-export interface SegmentedProps<T extends string> {
-  options: readonly SegmentedOption<T>[];
+export interface SegmentedTabsProps<T extends string> {
+  options: readonly SegmentedTabsOption<T>[];
   value: T;
   onChange: (next: T) => void;
   testID?: string;
 }
 
 /** Pill segmented control (Chats | Activity, Original | High). The selected segment is a raised pill. */
-export function Segmented<T extends string>({
+export function SegmentedTabs<T extends string>({
   options,
   value,
   onChange,
   testID,
-}: SegmentedProps<T>) {
+}: SegmentedTabsProps<T>) {
   return (
     <View
       testID={testID}

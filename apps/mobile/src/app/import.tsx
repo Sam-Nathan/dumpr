@@ -36,7 +36,7 @@ import {
   Text,
   toast,
   toPermissionOutcome,
-  Toggle,
+  ToggleSwitch,
   useColors,
 } from '@/ui';
 
@@ -394,7 +394,7 @@ export default function ImportScreen() {
           <Text variant="caption" tone="default" className="flex-1 pr-3">
             That is a lot of photos. Upload on Wi-Fi only to save your data?
           </Text>
-          <Toggle
+          <ToggleSwitch
             label="Upload on Wi-Fi only"
             value={queue.wifiOnly}
             onValueChange={(v) => {

@@ -175,10 +175,18 @@ async function listPhotos(
   // photo / selected: look up mime types (only needed for Original's file extension)
   const out: PhotoStub[] = [];
   for (const ids of chunk(d.photoIds, 100)) {
-    const { data, error } = await supabase.from('photos').select('id, mime').in('id', ids);
+    const { data, error } = await supabase
+      .from('photos')
+      .select('id, mime, uploader_id')
+      .in('id', ids);
     if (error) throw toAppError(error);
-    const byId = new Map((data ?? []).map((r) => [(r as PhotoStub).id, (r as PhotoStub).mime]));
-    for (const id of ids) out.push({ id, mime: byId.get(id) ?? 'image/jpeg' });
+    const rows = (data ?? []) as { id: string; mime: string; uploader_id: string }[];
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    for (const id of ids) {
+      const r = byId.get(id);
+      if (d.onlyMine && meId && r?.uploader_id !== meId) continue; // host turned downloads off
+      out.push({ id, mime: r?.mime ?? 'image/jpeg' });
+    }
   }
   return out;
 }

@@ -8,7 +8,7 @@ import { useColors } from './theme';
 export interface SettingsRowProps {
   title: string;
   subtitle?: string;
-  /** Right side: a value text, a Toggle, a Button... */
+  /** Right side: a value text, a ToggleSwitch, a Button... */
   trailing?: ReactNode;
   /** Show a chevron (a tappable row that opens something). */
   chevron?: boolean;

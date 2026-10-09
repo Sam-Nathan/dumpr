@@ -1,7 +1,7 @@
 import { Switch } from 'react-native';
 import { FLASH, INK, useScheme } from './theme';
 
-export interface ToggleProps {
+export interface ToggleSwitchProps {
   value: boolean;
   onValueChange: (next: boolean) => void;
   /** Spoken name, e.g. "Upload on Wi-Fi only". */
@@ -11,7 +11,7 @@ export interface ToggleProps {
 }
 
 /** On/off switch in the Dumpr palette: lime track when on, neutral when off. */
-export function Toggle({ value, onValueChange, label, disabled, testID }: ToggleProps) {
+export function ToggleSwitch({ value, onValueChange, label, disabled, testID }: ToggleSwitchProps) {
   const dark = useScheme() === 'dark';
   return (
     <Switch

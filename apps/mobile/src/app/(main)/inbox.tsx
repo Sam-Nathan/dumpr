@@ -36,7 +36,7 @@ import {
   edge,
   Icon,
   PressableScale,
-  Segmented,
+  SegmentedTabs,
   Skeleton,
   TINT_BG,
   Text,
@@ -233,7 +233,7 @@ export default function Inbox() {
               ) : null}
             </View>
             <View className="mb-3 mt-4">
-              <Segmented
+              <SegmentedTabs
                 value={tab}
                 onChange={setTab}
                 options={[
