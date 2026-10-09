@@ -5,7 +5,7 @@ import { useSession } from './session';
 import type { Profile, ProfileUpdate } from './types';
 
 const PROFILE_COLUMNS =
-  'id, display_name, handle, avatar_key, ring_color, birthday_day, birthday_month, is_guest, phone_visible, who_can_add, storage_used_bytes, storage_quota_bytes';
+  'id, display_name, handle, avatar_key, ring_color, birthday_day, birthday_month, is_guest, phone_visible, who_can_add';
 
 export const profileKey = (userId: string | undefined) => ['profile', userId] as const;
 

@@ -26,8 +26,7 @@ export interface Profile {
   is_guest: boolean;
   phone_visible: boolean;
   who_can_add: WhoCanAdd;
-  storage_used_bytes: number;
-  storage_quota_bytes: number | null;
+  // Storage usage is not selectable by clients; read it via the my_storage() RPC.
 }
 
 /** Columns the profile screen may write (matches the column grants in architecture §3). */
