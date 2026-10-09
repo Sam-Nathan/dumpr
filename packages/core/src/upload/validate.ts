@@ -10,9 +10,15 @@ import {
   MAX_THUMB_BYTES,
   S3_MAX_PARTS,
 } from './constants.ts';
-import type { UploadCompleteRequest, UploadContext, UploadInitRequest, UploadPartEtag } from './types.ts';
+import type {
+  UploadCompleteRequest,
+  UploadContext,
+  UploadInitRequest,
+  UploadPartEtag,
+} from './types.ts';
 
-export type Validated<T> = { ok: true; value: T } | { ok: false; code: 'invalid_input'; field: string };
+export type Validated<T> =
+  { ok: true; value: T } | { ok: false; code: 'invalid_input'; field: string };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CONTENT_HASH_RE = /^md5:[0-9a-f]{32}$/;
@@ -43,15 +49,14 @@ export function contentHashFromMd5Hex(hex: string): string {
 
 /** ETags come quoted (and sometimes weak, W/"…"); compare them bare and lowercase. */
 export function normalizeEtag(etag: string | null | undefined): string {
-  return (etag ?? '')
-    .trim()
-    .replace(/^W\//i, '')
-    .replace(/"/g, '')
-    .toLowerCase();
+  return (etag ?? '').trim().replace(/^W\//i, '').replace(/"/g, '').toLowerCase();
 }
 
 export function isAcceptedMime(mime: unknown): mime is string {
-  return typeof mime === 'string' && (ACCEPTED_IMAGE_MIME as readonly string[]).includes(mime.toLowerCase());
+  return (
+    typeof mime === 'string' &&
+    (ACCEPTED_IMAGE_MIME as readonly string[]).includes(mime.toLowerCase())
+  );
 }
 
 export function isValidBlurhash(v: unknown): v is string {
@@ -77,7 +82,11 @@ function isIsoTimestamp(v: string): boolean {
  * checked by the server against `svc_upload_context`, not here.
  */
 export function validateInitRequest(input: unknown): Validated<UploadInitRequest> {
-  const bad = (field: string): Validated<UploadInitRequest> => ({ ok: false, code: 'invalid_input', field });
+  const bad = (field: string): Validated<UploadInitRequest> => ({
+    ok: false,
+    code: 'invalid_input',
+    field,
+  });
   if (!input || typeof input !== 'object' || Array.isArray(input)) return bad('body');
   const b = input as Record<string, unknown>;
   if (!isUuid(b.photo_id)) return bad('photo_id');
@@ -87,12 +96,18 @@ export function validateInitRequest(input: unknown): Validated<UploadInitRequest
   if (!posInt(b.bytes)) return bad('bytes');
   if (!optDimension(b.width)) return bad('width');
   if (!optDimension(b.height)) return bad('height');
-  if (b.taken_at !== undefined && b.taken_at !== null && (typeof b.taken_at !== 'string' || !isIsoTimestamp(b.taken_at))) {
+  if (
+    b.taken_at !== undefined &&
+    b.taken_at !== null &&
+    (typeof b.taken_at !== 'string' || !isIsoTimestamp(b.taken_at))
+  ) {
     return bad('taken_at');
   }
-  if (b.chapter_id !== undefined && b.chapter_id !== null && !isUuid(b.chapter_id)) return bad('chapter_id');
+  if (b.chapter_id !== undefined && b.chapter_id !== null && !isUuid(b.chapter_id))
+    return bad('chapter_id');
   if (b.caption !== undefined && b.caption !== null) {
-    if (typeof b.caption !== 'string' || [...b.caption].length > MAX_CAPTION_CHARS) return bad('caption');
+    if (typeof b.caption !== 'string' || [...b.caption].length > MAX_CAPTION_CHARS)
+      return bad('caption');
   }
   if (!posInt(b.display_bytes, MAX_DISPLAY_BYTES)) return bad('display_bytes');
   if (!posInt(b.thumb_bytes, MAX_THUMB_BYTES)) return bad('thumb_bytes');
@@ -118,7 +133,11 @@ export function validateInitRequest(input: unknown): Validated<UploadInitRequest
 
 /** Validates an upload-complete body. Parts are returned sorted and de-duplicated by `n`. */
 export function validateCompleteRequest(input: unknown): Validated<UploadCompleteRequest> {
-  const bad = (field: string): Validated<UploadCompleteRequest> => ({ ok: false, code: 'invalid_input', field });
+  const bad = (field: string): Validated<UploadCompleteRequest> => ({
+    ok: false,
+    code: 'invalid_input',
+    field,
+  });
   if (!input || typeof input !== 'object' || Array.isArray(input)) return bad('body');
   const b = input as Record<string, unknown>;
   if (!isUuid(b.photo_id)) return bad('photo_id');
@@ -130,12 +149,14 @@ export function validateCompleteRequest(input: unknown): Validated<UploadComplet
       const o = p as { n?: unknown; etag?: unknown } | null;
       if (!o || !posInt(o.n, S3_MAX_PARTS) || typeof o.etag !== 'string') return bad('parts');
       const etag = o.etag.trim();
-      if (etag.length === 0 || etag.length > 128 || /[<>&\s]/.test(etag.replace(/"/g, ''))) return bad('parts');
+      if (etag.length === 0 || etag.length > 128 || /[<>&\s]/.test(etag.replace(/"/g, '')))
+        return bad('parts');
       byN.set(o.n, etag);
     }
     parts = [...byN.entries()].sort((a, b2) => a[0] - b2[0]).map(([n, etag]) => ({ n, etag }));
   }
-  if (b.blurhash !== undefined && b.blurhash !== null && !isValidBlurhash(b.blurhash)) return bad('blurhash');
+  if (b.blurhash !== undefined && b.blurhash !== null && !isValidBlurhash(b.blurhash))
+    return bad('blurhash');
   const value: UploadCompleteRequest = { photo_id: (b.photo_id as string).toLowerCase() };
   if (parts) value.parts = parts;
   if (typeof b.blurhash === 'string') value.blurhash = b.blurhash;
@@ -154,8 +175,7 @@ export function partsAreComplete(parts: ReadonlyArray<{ n: number }>, count: num
 }
 
 export type UploadAccessDecision =
-  | { ok: true; reviewFirst: boolean }
-  | { ok: false; status: 403 | 404 | 413; code: string };
+  { ok: true; reviewFirst: boolean } | { ok: false; status: 403 | 404 | 413; code: string };
 
 /**
  * Upload permission from `svc_upload_context` (null = RPC returned nothing). Pure so both
@@ -167,8 +187,10 @@ export function decideUploadAccess(
 ): UploadAccessDecision {
   if (!ctx || !ctx.crew_id) return { ok: false, status: 404, code: 'not_found' };
   if (!ctx.can_upload) {
-    if (ctx.is_guest && !ctx.guests_allowed) return { ok: false, status: 403, code: 'guests_not_allowed' };
-    if (!ctx.allow_uploads && !ctx.is_admin) return { ok: false, status: 403, code: 'uploads_disabled' };
+    if (ctx.is_guest && !ctx.guests_allowed)
+      return { ok: false, status: 403, code: 'guests_not_allowed' };
+    if (!ctx.allow_uploads && !ctx.is_admin)
+      return { ok: false, status: 403, code: 'uploads_disabled' };
     return { ok: false, status: 403, code: 'not_a_member' };
   }
   if (opts.bytes !== undefined) {
@@ -192,7 +214,12 @@ export function decideUploadAccess(
 export function parseUploadContext(raw: unknown): UploadContext | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
-  const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v !== '' && Number.isFinite(Number(v)) ? Number(v) : d);
+  const num = (v: unknown, d: number) =>
+    typeof v === 'number' && Number.isFinite(v)
+      ? v
+      : typeof v === 'string' && v !== '' && Number.isFinite(Number(v))
+        ? Number(v)
+        : d;
   const bool = (v: unknown) => v === true;
   const limit = r.storage_limit_bytes;
   return {

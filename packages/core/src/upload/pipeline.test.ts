@@ -9,7 +9,13 @@ import {
   type UploadProgressState,
   type UploadTransport,
 } from './pipeline.ts';
-import type { PresignedPut, UploadInitRequest, UploadInitResponse, UploadPartEtag, UploadVariant } from './types.ts';
+import type {
+  PresignedPut,
+  UploadInitRequest,
+  UploadInitResponse,
+  UploadPartEtag,
+  UploadVariant,
+} from './types.ts';
 
 const MD5 = '0123456789abcdef0123456789abcdef';
 const job = (patch: Partial<PreparedUpload> = {}): PreparedUpload => ({
@@ -26,7 +32,10 @@ const job = (patch: Partial<PreparedUpload> = {}): PreparedUpload => ({
   ...patch,
 });
 
-const put = (name: string): PresignedPut => ({ url: `https://r2/${name}`, headers: { 'content-type': 'image/jpeg' } });
+const put = (name: string): PresignedPut => ({
+  url: `https://r2/${name}`,
+  headers: { 'content-type': 'image/jpeg' },
+});
 
 interface Calls {
   init: UploadInitRequest[];
@@ -81,7 +90,9 @@ function fakeTransport(opts: {
   return { t, calls };
 }
 
-const uploadRes = (patch: Partial<Extract<UploadInitResponse, { status: 'upload' }>> = {}): UploadInitResponse => ({
+const uploadRes = (
+  patch: Partial<Extract<UploadInitResponse, { status: 'upload' }>> = {},
+): UploadInitResponse => ({
   status: 'upload',
   photo_id: 'p1',
   original: { mode: 'put', ...put('o') },
@@ -97,7 +108,10 @@ const multipartRes = (uploadId: string, partSize = 8 * MiB, count = 3): UploadIn
       mode: 'multipart',
       upload_id: uploadId,
       part_size: partSize,
-      parts: Array.from({ length: count }, (_, i) => ({ n: i + 1, url: `https://r2/part${i + 1}` })),
+      parts: Array.from({ length: count }, (_, i) => ({
+        n: i + 1,
+        url: `https://r2/part${i + 1}`,
+      })),
     },
   });
 
@@ -110,32 +124,65 @@ describe('runUpload', () => {
       saveProgress: (p) => void saved.push(p),
       onStage: (s) => void stages.push(s),
     });
-    expect(res).toEqual({ kind: 'done', status: 'ready', response: { status: 'ready', photo: { id: 'p1' } } });
+    expect(res).toEqual({
+      kind: 'done',
+      status: 'ready',
+      response: { status: 'ready', photo: { id: 'p1' } },
+    });
     expect(calls.puts).toEqual(['thumb', 'display', 'original']);
     expect(stages).toEqual(['initiating', 'uploading', 'completing']);
-    expect(saved.at(-1)).toEqual({ variantsDone: ['thumb', 'display', 'original'], multipart: null });
-    expect(calls.init[0]).toMatchObject({ photo_id: 'p1', roll_id: 'r1', display_bytes: 100, thumb_bytes: 10, chapter_id: null });
+    expect(saved.at(-1)).toEqual({
+      variantsDone: ['thumb', 'display', 'original'],
+      multipart: null,
+    });
+    expect(calls.init[0]).toMatchObject({
+      photo_id: 'p1',
+      roll_id: 'r1',
+      display_bytes: 100,
+      thumb_bytes: 10,
+      chapter_id: null,
+    });
     expect(calls.complete[0]).toEqual({ photo_id: 'p1', blurhash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj' });
   });
 
   it('skips variants already uploaded in an earlier attempt', async () => {
     const { t, calls } = fakeTransport({ initResponses: [uploadRes()] });
-    await runUpload(job({ blurhash: null }), { variantsDone: ['thumb', 'display'], multipart: null }, t);
+    await runUpload(
+      job({ blurhash: null }),
+      { variantsDone: ['thumb', 'display'], multipart: null },
+      t,
+    );
     expect(calls.puts).toEqual(['original']);
     expect(calls.complete[0]).toEqual({ photo_id: 'p1' });
   });
 
   it('returns duplicate, or done when the duplicate is this photo', async () => {
-    const dup = fakeTransport({ initResponses: [{ status: 'duplicate', existing_photo_id: 'other' }] });
-    expect(await runUpload(job(), emptyProgress(), dup.t)).toEqual({ kind: 'duplicate', existingPhotoId: 'other' });
+    const dup = fakeTransport({
+      initResponses: [{ status: 'duplicate', existing_photo_id: 'other' }],
+    });
+    expect(await runUpload(job(), emptyProgress(), dup.t)).toEqual({
+      kind: 'duplicate',
+      existingPhotoId: 'other',
+    });
     expect(dup.calls.puts).toEqual([]);
-    const self = fakeTransport({ initResponses: [{ status: 'duplicate', existing_photo_id: 'p1' }] });
-    expect(await runUpload(job(), emptyProgress(), self.t)).toEqual({ kind: 'done', status: 'ready', response: null });
+    const self = fakeTransport({
+      initResponses: [{ status: 'duplicate', existing_photo_id: 'p1' }],
+    });
+    expect(await runUpload(job(), emptyProgress(), self.t)).toEqual({
+      kind: 'done',
+      status: 'ready',
+      response: null,
+    });
   });
 
   it('rejects an original whose ETag is not the expected md5', async () => {
-    const { t } = fakeTransport({ initResponses: [uploadRes()], etag: (v) => (v === 'original' ? '"deadbeef"' : null) });
-    await expect(runUpload(job(), emptyProgress(), t)).rejects.toMatchObject({ code: 'checksum_mismatch' });
+    const { t } = fakeTransport({
+      initResponses: [uploadRes()],
+      etag: (v) => (v === 'original' ? '"deadbeef"' : null),
+    });
+    await expect(runUpload(job(), emptyProgress(), t)).rejects.toMatchObject({
+      code: 'checksum_mismatch',
+    });
   });
 
   it('accepts a missing ETag (CORS not exposing it) — the server verifies anyway', async () => {
@@ -170,7 +217,8 @@ describe('runUpload', () => {
     });
     expect(Math.max(...progress)).toBe(bytes + 110);
     // monotonic
-    for (let i = 1; i < progress.length; i++) expect(progress[i]!).toBeGreaterThanOrEqual(progress[i - 1]! - 0);
+    for (let i = 1; i < progress.length; i++)
+      expect(progress[i]!).toBeGreaterThanOrEqual(progress[i - 1]! - 0);
   });
 
   it('resumes a multipart upload at the next part with the same upload id', async () => {
@@ -209,7 +257,10 @@ describe('runUpload', () => {
     expect(flaky.calls.parts).toEqual([1, 2, 3]);
     expect(sleeps).toEqual([1000, 2000]);
 
-    const dead = fakeTransport({ initResponses: [multipartRes('U1')], partFail: (n) => (n === 2 ? new UploadError('network') : null) });
+    const dead = fakeTransport({
+      initResponses: [multipartRes('U1')],
+      partFail: (n) => (n === 2 ? new UploadError('network') : null),
+    });
     const saved: UploadProgressState[] = [];
     await expect(
       runUpload(job({ bytes: 20 * MiB }), emptyProgress(), dead.t, {
@@ -222,10 +273,15 @@ describe('runUpload', () => {
   });
 
   it('does not retry a part on a blocked error', async () => {
-    const { t } = fakeTransport({ initResponses: [multipartRes('U1')], partFail: () => new UploadError('storage_full') });
+    const { t } = fakeTransport({
+      initResponses: [multipartRes('U1')],
+      partFail: () => new UploadError('storage_full'),
+    });
     const sleeps: number[] = [];
     await expect(
-      runUpload(job({ bytes: 20 * MiB }), emptyProgress(), t, { sleep: async (ms) => void sleeps.push(ms) }),
+      runUpload(job({ bytes: 20 * MiB }), emptyProgress(), t, {
+        sleep: async (ms) => void sleeps.push(ms),
+      }),
     ).rejects.toMatchObject({ code: 'storage_full' });
     expect(sleeps).toEqual([]);
   });
@@ -233,7 +289,9 @@ describe('runUpload', () => {
   it('re-sends only the variants upload-complete reports missing', async () => {
     const { t, calls } = fakeTransport({
       initResponses: [uploadRes()],
-      completeErrors: [new UploadError('upload_incomplete', { status: 422, details: { missing: ['display'] } })],
+      completeErrors: [
+        new UploadError('upload_incomplete', { status: 422, details: { missing: ['display'] } }),
+      ],
     });
     const res = await runUpload(job(), emptyProgress(), t);
     expect(res.kind).toBe('done');
@@ -246,7 +304,9 @@ describe('runUpload', () => {
     const restart = fakeTransport({
       initResponses: [multipartRes('U1'), multipartRes('U2')],
       completeErrors: [
-        new UploadError('upload_incomplete', { details: { missing: ['original'], restart_multipart: true } }),
+        new UploadError('upload_incomplete', {
+          details: { missing: ['original'], restart_multipart: true },
+        }),
       ],
     });
     await runUpload(job({ bytes: 20 * MiB }), emptyProgress(), restart.t);
@@ -254,7 +314,11 @@ describe('runUpload', () => {
 
     const reset = fakeTransport({
       initResponses: [multipartRes('U1')],
-      completeErrors: [new UploadError('upload_incomplete', { details: { missing: ['original'], reset_parts: true } })],
+      completeErrors: [
+        new UploadError('upload_incomplete', {
+          details: { missing: ['original'], reset_parts: true },
+        }),
+      ],
     });
     await runUpload(job({ bytes: 20 * MiB }), emptyProgress(), reset.t);
     expect(reset.calls.parts).toEqual([1, 2, 3, 1, 2, 3]);
@@ -263,14 +327,24 @@ describe('runUpload', () => {
 
   it('gives up with upload_incomplete after three rounds', async () => {
     const e = () => new UploadError('upload_incomplete', { details: { missing: ['thumb'] } });
-    const { t, calls } = fakeTransport({ initResponses: [uploadRes()], completeErrors: [e(), e(), e()] });
-    await expect(runUpload(job(), emptyProgress(), t)).rejects.toMatchObject({ code: 'upload_incomplete' });
+    const { t, calls } = fakeTransport({
+      initResponses: [uploadRes()],
+      completeErrors: [e(), e(), e()],
+    });
+    await expect(runUpload(job(), emptyProgress(), t)).rejects.toMatchObject({
+      code: 'upload_incomplete',
+    });
     expect(calls.init).toHaveLength(3);
   });
 
   it('propagates other complete errors', async () => {
-    const { t } = fakeTransport({ initResponses: [uploadRes()], completeErrors: [new UploadError('uploads_disabled')] });
-    await expect(runUpload(job(), emptyProgress(), t)).rejects.toMatchObject({ code: 'uploads_disabled' });
+    const { t } = fakeTransport({
+      initResponses: [uploadRes()],
+      completeErrors: [new UploadError('uploads_disabled')],
+    });
+    await expect(runUpload(job(), emptyProgress(), t)).rejects.toMatchObject({
+      code: 'uploads_disabled',
+    });
   });
 
   it('stops with cancelled when the signal aborts', async () => {
@@ -282,7 +356,9 @@ describe('runUpload', () => {
         return null;
       },
     });
-    await expect(runUpload(job(), emptyProgress(), t, { signal })).rejects.toMatchObject({ code: 'cancelled' });
+    await expect(runUpload(job(), emptyProgress(), t, { signal })).rejects.toMatchObject({
+      code: 'cancelled',
+    });
     expect(calls.puts).toEqual(['thumb', 'display']);
     expect(calls.complete).toHaveLength(0);
   });

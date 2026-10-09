@@ -78,7 +78,9 @@ export type UploadEvent =
   | { type: 'cancel' };
 
 export function isActive(kind: UploadStateKind): boolean {
-  return kind === 'preparing' || kind === 'initiating' || kind === 'uploading' || kind === 'completing';
+  return (
+    kind === 'preparing' || kind === 'initiating' || kind === 'uploading' || kind === 'completing'
+  );
 }
 
 export function isTerminal(kind: UploadStateKind): boolean {
@@ -92,7 +94,10 @@ export function needsAttention(state: UploadState): boolean {
 
 /** Can the worker start this item now? */
 export function isRunnable(state: UploadState, now: number): boolean {
-  return state.kind === 'queued' || (state.kind === 'failed' && state.retryAt !== null && state.retryAt <= now);
+  return (
+    state.kind === 'queued' ||
+    (state.kind === 'failed' && state.retryAt !== null && state.retryAt <= now)
+  );
 }
 
 /** 0..1 progress for one item. */
@@ -103,7 +108,9 @@ export function itemProgress(state: UploadState): number {
     case 'completing':
       return 1;
     case 'uploading':
-      return state.totalBytes > 0 ? Math.min(1, Math.max(0, state.sentBytes / state.totalBytes)) : 0;
+      return state.totalBytes > 0
+        ? Math.min(1, Math.max(0, state.sentBytes / state.totalBytes))
+        : 0;
     default:
       return 0;
   }
@@ -147,7 +154,10 @@ export function transition<T extends UploadItemState>(item: T, event: UploadEven
       if (d.kind === 'blocked') return to({ kind: 'blocked', code: d.code });
       const attempt = item.attempt + 1;
       if (d.kind === 'fatal') return to({ kind: 'failed', code: d.code, retryAt: null }, attempt);
-      return to({ kind: 'failed', code: d.code, retryAt: nextRetryAt(attempt, event.now, event.rand) }, attempt);
+      return to(
+        { kind: 'failed', code: d.code, retryAt: nextRetryAt(attempt, event.now, event.rand) },
+        attempt,
+      );
     }
     case 'pause':
       if (isTerminal(s.kind) || s.kind === 'blocked') return item;
@@ -159,9 +169,13 @@ export function transition<T extends UploadItemState>(item: T, event: UploadEven
       if (event.reason !== undefined && s.reason !== event.reason) return item;
       return to({ kind: 'queued' });
     case 'due':
-      return s.kind === 'failed' && s.retryAt !== null && s.retryAt <= event.now ? to({ kind: 'queued' }) : item;
+      return s.kind === 'failed' && s.retryAt !== null && s.retryAt <= event.now
+        ? to({ kind: 'queued' })
+        : item;
     case 'retry':
-      return s.kind === 'failed' || s.kind === 'blocked' || s.kind === 'paused' ? to({ kind: 'queued' }, 0) : item;
+      return s.kind === 'failed' || s.kind === 'blocked' || s.kind === 'paused'
+        ? to({ kind: 'queued' }, 0)
+        : item;
     case 'cancel':
       return isTerminal(s.kind) ? item : to({ kind: 'cancelled' });
   }

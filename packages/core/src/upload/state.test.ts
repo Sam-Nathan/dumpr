@@ -13,8 +13,13 @@ import {
   type UploadState,
 } from './state.ts';
 
-const item = (state: UploadState, attempt = 0): UploadItemState & { id: string } => ({ id: 'x', state, attempt });
-const run = (start: UploadItemState, ...events: UploadEvent[]) => events.reduce((it, e) => transition(it, e), start);
+const item = (state: UploadState, attempt = 0): UploadItemState & { id: string } => ({
+  id: 'x',
+  state,
+  attempt,
+});
+const run = (start: UploadItemState, ...events: UploadEvent[]) =>
+  events.reduce((it, e) => transition(it, e), start);
 
 describe('transition: happy path', () => {
   it('queued → preparing → initiating → uploading → completing → done', () => {
@@ -37,11 +42,17 @@ describe('transition: happy path', () => {
   });
 
   it('prepared items skip preparing via initiate', () => {
-    expect(transition(item({ kind: 'queued' }), { type: 'initiate' }).state.kind).toBe('initiating');
+    expect(transition(item({ kind: 'queued' }), { type: 'initiate' }).state.kind).toBe(
+      'initiating',
+    );
   });
 
   it('tracks progress, clamped to the total', () => {
-    let it2 = run(item({ kind: 'initiating' }), { type: 'upload_started', totalBytes: 100, sentBytes: 10 });
+    let it2 = run(item({ kind: 'initiating' }), {
+      type: 'upload_started',
+      totalBytes: 100,
+      sentBytes: 10,
+    });
     expect(it2.state).toEqual({ kind: 'uploading', totalBytes: 100, sentBytes: 10 });
     it2 = transition(it2, { type: 'progress', sentBytes: 250 });
     expect(it2.state).toEqual({ kind: 'uploading', totalBytes: 100, sentBytes: 100 });
@@ -50,18 +61,32 @@ describe('transition: happy path', () => {
   });
 
   it('review status for guest uploads', () => {
-    expect(transition(item({ kind: 'completing' }), { type: 'completed', status: 'review' }).state).toEqual({
+    expect(
+      transition(item({ kind: 'completing' }), { type: 'completed', status: 'review' }).state,
+    ).toEqual({
       kind: 'done',
       status: 'review',
     });
   });
 
   it('duplicate ends the item; a duplicate of itself means done', () => {
-    expect(transition(item({ kind: 'initiating' }), { type: 'duplicate', existingPhotoId: 'p2', photoId: 'p1' }).state).toEqual({
+    expect(
+      transition(item({ kind: 'initiating' }), {
+        type: 'duplicate',
+        existingPhotoId: 'p2',
+        photoId: 'p1',
+      }).state,
+    ).toEqual({
       kind: 'duplicate',
       existingPhotoId: 'p2',
     });
-    expect(transition(item({ kind: 'initiating' }), { type: 'duplicate', existingPhotoId: 'p1', photoId: 'p1' }).state).toEqual({
+    expect(
+      transition(item({ kind: 'initiating' }), {
+        type: 'duplicate',
+        existingPhotoId: 'p1',
+        photoId: 'p1',
+      }).state,
+    ).toEqual({
       kind: 'done',
       status: 'ready',
     });
@@ -105,7 +130,13 @@ describe('transition: errors', () => {
   });
 
   it('blocked codes stop the item without counting an attempt', () => {
-    for (const code of ['storage_full', 'uploads_disabled', 'not_a_member', 'storage_not_configured', 'guests_not_allowed']) {
+    for (const code of [
+      'storage_full',
+      'uploads_disabled',
+      'not_a_member',
+      'storage_not_configured',
+      'guests_not_allowed',
+    ]) {
       const it2 = transition(item({ kind: 'initiating' }, 2), { type: 'error', code, now });
       expect(it2.state).toEqual({ kind: 'blocked', code });
       expect(it2.attempt).toBe(2);
@@ -114,7 +145,11 @@ describe('transition: errors', () => {
   });
 
   it('fatal codes fail without automatic retry', () => {
-    const it2 = transition(item({ kind: 'initiating' }), { type: 'error', code: 'invalid_input', now });
+    const it2 = transition(item({ kind: 'initiating' }), {
+      type: 'error',
+      code: 'invalid_input',
+      now,
+    });
     expect(it2.state).toEqual({ kind: 'failed', code: 'invalid_input', retryAt: null });
   });
 
@@ -172,11 +207,16 @@ describe('transition: pause / resume / cancel', () => {
   it('re-pausing for the same reason is a no-op', () => {
     const p = item({ kind: 'paused', reason: 'no_network' });
     expect(transition(p, { type: 'pause', reason: 'no_network' })).toBe(p);
-    expect(transition(p, { type: 'pause', reason: 'user' }).state).toEqual({ kind: 'paused', reason: 'user' });
+    expect(transition(p, { type: 'pause', reason: 'user' }).state).toEqual({
+      kind: 'paused',
+      reason: 'user',
+    });
   });
 
   it('cancel works from any non-terminal state and is final', () => {
-    const c = transition(item({ kind: 'uploading', sentBytes: 1, totalBytes: 9 }), { type: 'cancel' });
+    const c = transition(item({ kind: 'uploading', sentBytes: 1, totalBytes: 9 }), {
+      type: 'cancel',
+    });
     expect(c.state.kind).toBe('cancelled');
     expect(transition(c, { type: 'retry' })).toBe(c);
     expect(transition(c, { type: 'prepare' })).toBe(c);
@@ -245,9 +285,15 @@ describe('persist', () => {
   });
 
   it('network pauses come back queued (the worker re-applies the gate); unknown → queued', () => {
-    expect(stateFromRecord(stateToRecord({ kind: 'paused', reason: 'wifi_only' }))).toEqual({ kind: 'queued' });
-    expect(stateFromRecord({ state: 'bogus' })).toEqual({ kind: 'queued' });
-    expect(stateFromRecord({ state: 'blocked', error_code: 'weird' })).toEqual({ kind: 'failed', code: 'weird', retryAt: null });
+    expect(stateFromRecord(stateToRecord({ kind: 'paused', reason: 'wifi_only' }))).toEqual({
+      kind: 'queued',
+    });
+    expect(stateFromRecord({ state: 'bogus' as never })).toEqual({ kind: 'queued' });
+    expect(stateFromRecord({ state: 'blocked', error_code: 'weird' })).toEqual({
+      kind: 'failed',
+      code: 'weird',
+      retryAt: null,
+    });
     expect(stateFromRecord({ state: 'duplicate' })).toEqual({ kind: 'queued' });
   });
 });

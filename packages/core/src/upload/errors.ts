@@ -79,7 +79,10 @@ export function toUploadError(e: unknown): UploadError {
     const o = e as { name?: unknown; code?: unknown; message?: unknown };
     if (o.name === 'AbortError') return new UploadError('cancelled');
     if (typeof o.code === 'string' && /^[a-z_]+$/.test(o.code)) return new UploadError(o.code);
-    if (o.name === 'TypeError' || /network|fetch|timed? ?out|offline|connection/i.test(String(o.message ?? ''))) {
+    if (
+      o.name === 'TypeError' ||
+      /network|fetch|timed? ?out|offline|connection/i.test(String(o.message ?? ''))
+    ) {
       return new UploadError('network', { message: String(o.message ?? 'network') });
     }
   }
@@ -91,7 +94,8 @@ export function toUploadError(e: unknown): UploadError {
  * Falls back to a status-derived code.
  */
 export function errorFromResponse(status: number, body: unknown): UploadError {
-  const env = (body as { error?: { code?: unknown; message?: unknown; details?: unknown } } | null)?.error;
+  const env = (body as { error?: { code?: unknown; message?: unknown; details?: unknown } } | null)
+    ?.error;
   if (env && typeof env.code === 'string') {
     return new UploadError(env.code, {
       status,

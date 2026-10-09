@@ -51,7 +51,10 @@ export function summarizeUploads(items: ReadonlyArray<SummarizableItem>): Upload
     total++;
     const bytes = Number.isFinite(it.bytes) && it.bytes > 0 ? it.bytes : 0;
     totalBytes += bytes;
-    const p = it.state === 'done' || it.state === 'duplicate' ? 1 : Math.min(1, Math.max(0, it.progress || 0));
+    const p =
+      it.state === 'done' || it.state === 'duplicate'
+        ? 1
+        : Math.min(1, Math.max(0, it.progress || 0));
     doneBytes += bytes * p;
     if (isActive(it.state)) active++;
   }

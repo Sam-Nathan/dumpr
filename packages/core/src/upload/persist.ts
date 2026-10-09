@@ -59,13 +59,19 @@ export function stateFromRecord(r: Partial<UploadStateRecord> & { state: string 
   if (isActive(kind)) return { kind: 'queued' };
   switch (kind) {
     case 'failed':
-      return { kind: 'failed', code: r.error_code || 'unknown', retryAt: r.next_attempt_at ?? null };
+      return {
+        kind: 'failed',
+        code: r.error_code || 'unknown',
+        retryAt: r.next_attempt_at ?? null,
+      };
     case 'blocked':
       return r.error_code && isBlockedCode(r.error_code)
         ? { kind: 'blocked', code: r.error_code }
         : { kind: 'failed', code: r.error_code || 'unknown', retryAt: null };
     case 'duplicate':
-      return r.existing_photo_id ? { kind: 'duplicate', existingPhotoId: r.existing_photo_id } : { kind: 'queued' };
+      return r.existing_photo_id
+        ? { kind: 'duplicate', existingPhotoId: r.existing_photo_id }
+        : { kind: 'queued' };
     case 'done':
       return { kind: 'done', status: r.result_status === 'review' ? 'review' : 'ready' };
     case 'paused':

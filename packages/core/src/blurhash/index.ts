@@ -2,7 +2,8 @@
 // implementation (woltapp/blurhash). Encode from a tiny (e.g. 32 px) RGBA buffer; decode to a
 // small RGBA buffer for web placeholders.
 
-const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~';
+const ALPHABET =
+  '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~';
 const DIGIT: Record<string, number> = {};
 for (let i = 0; i < ALPHABET.length; i++) DIGIT[ALPHABET[i]!] = i;
 
@@ -41,7 +42,9 @@ for (let i = 0; i < 256; i++) {
 
 function linearToSrgb(value: number): number {
   const v = Math.max(0, Math.min(1, value));
-  return v <= 0.0031308 ? Math.trunc(v * 12.92 * 255 + 0.5) : Math.trunc((1.055 * Math.pow(v, 1 / 2.4) - 0.055) * 255 + 0.5);
+  return v <= 0.0031308
+    ? Math.trunc(v * 12.92 * 255 + 0.5)
+    : Math.trunc((1.055 * Math.pow(v, 1 / 2.4) - 0.055) * 255 + 0.5);
 }
 
 const signPow = (v: number, exp: number) => Math.sign(v) * Math.pow(Math.abs(v), exp);
@@ -64,13 +67,16 @@ export function encode(
   if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
     throw new BlurhashError('width and height must be positive integers');
   }
-  if (pixels.length !== width * height * 4) throw new BlurhashError('pixel array length must be width·height·4');
+  if (pixels.length !== width * height * 4)
+    throw new BlurhashError('pixel array length must be width·height·4');
 
   // Precompute cosines per axis.
   const cosX = new Float64Array(componentX * width);
-  for (let i = 0; i < componentX; i++) for (let x = 0; x < width; x++) cosX[i * width + x] = Math.cos((Math.PI * i * x) / width);
+  for (let i = 0; i < componentX; i++)
+    for (let x = 0; x < width; x++) cosX[i * width + x] = Math.cos((Math.PI * i * x) / width);
   const cosY = new Float64Array(componentY * height);
-  for (let j = 0; j < componentY; j++) for (let y = 0; y < height; y++) cosY[j * height + y] = Math.cos((Math.PI * j * y) / height);
+  for (let j = 0; j < componentY; j++)
+    for (let y = 0; y < height; y++) cosY[j * height + y] = Math.cos((Math.PI * j * y) / height);
 
   const factors: [number, number, number][] = [];
   const scale = 1 / (width * height);
@@ -101,8 +107,9 @@ export function encode(
 
   let maximumValue: number;
   if (ac.length > 0) {
-    let actualMax = 0;
-    for (const f of ac) actualMax = Math.max(actualMax, Math.abs(f[0]), Math.abs(f[1]), Math.abs(f[2]));
+    // Matches the reference implementation, which takes the largest *signed* component.
+    let actualMax = -Infinity;
+    for (const f of ac) actualMax = Math.max(actualMax, f[0], f[1], f[2]);
     const quantisedMax = Math.floor(Math.max(0, Math.min(82, Math.floor(actualMax * 166 - 0.5))));
     maximumValue = (quantisedMax + 1) / 166;
     hash += encode83(quantisedMax, 1);
@@ -111,9 +118,13 @@ export function encode(
     hash += encode83(0, 1);
   }
 
-  hash += encode83((linearToSrgb(dc[0]) << 16) + (linearToSrgb(dc[1]) << 8) + linearToSrgb(dc[2]), 4);
+  hash += encode83(
+    (linearToSrgb(dc[0]) << 16) + (linearToSrgb(dc[1]) << 8) + linearToSrgb(dc[2]),
+    4,
+  );
   for (const f of ac) {
-    const q = (v: number) => Math.floor(Math.max(0, Math.min(18, Math.floor(signPow(v / maximumValue, 0.5) * 9 + 9.5))));
+    const q = (v: number) =>
+      Math.floor(Math.max(0, Math.min(18, Math.floor(signPow(v / maximumValue, 0.5) * 9 + 9.5))));
     hash += encode83(q(f[0]) * 19 * 19 + q(f[1]) * 19 + q(f[2]), 2);
   }
   return hash;
@@ -121,12 +132,15 @@ export function encode(
 
 /** Throws BlurhashError when `hash` is not a well-formed BlurHash. */
 export function validateBlurhash(hash: string): { componentX: number; componentY: number } {
-  if (typeof hash !== 'string' || hash.length < 6) throw new BlurhashError('BlurHash must be at least 6 characters');
+  if (typeof hash !== 'string' || hash.length < 6)
+    throw new BlurhashError('BlurHash must be at least 6 characters');
   const sizeFlag = decode83(hash[0]!);
   const componentY = Math.floor(sizeFlag / 9) + 1;
   const componentX = (sizeFlag % 9) + 1;
   if (hash.length !== 4 + 2 * componentX * componentY) {
-    throw new BlurhashError(`BlurHash length mismatch: expected ${4 + 2 * componentX * componentY}, got ${hash.length}`);
+    throw new BlurhashError(
+      `BlurHash length mismatch: expected ${4 + 2 * componentX * componentY}, got ${hash.length}`,
+    );
   }
   decode83(hash.slice(1)); // validates every character
   return { componentX, componentY };
@@ -153,21 +167,31 @@ export function decode(hash: string, width: number, height: number, punch = 1): 
   const colors: [number, number, number][] = new Array(componentX * componentY);
 
   const dcValue = decode83(hash.slice(2, 6));
-  colors[0] = [SRGB_TO_LINEAR[dcValue >> 16]!, SRGB_TO_LINEAR[(dcValue >> 8) & 255]!, SRGB_TO_LINEAR[dcValue & 255]!];
+  colors[0] = [
+    SRGB_TO_LINEAR[dcValue >> 16]!,
+    SRGB_TO_LINEAR[(dcValue >> 8) & 255]!,
+    SRGB_TO_LINEAR[dcValue & 255]!,
+  ];
   for (let i = 1; i < colors.length; i++) {
     const value = decode83(hash.slice(4 + i * 2, 6 + i * 2));
     const qr = Math.floor(value / (19 * 19));
     const qg = Math.floor(value / 19) % 19;
     const qb = value % 19;
     const m = maximumValue * punch;
-    colors[i] = [signPow((qr - 9) / 9, 2) * m, signPow((qg - 9) / 9, 2) * m, signPow((qb - 9) / 9, 2) * m];
+    colors[i] = [
+      signPow((qr - 9) / 9, 2) * m,
+      signPow((qg - 9) / 9, 2) * m,
+      signPow((qb - 9) / 9, 2) * m,
+    ];
   }
 
   const out = new Uint8ClampedArray(width * height * 4);
   const cosX = new Float64Array(componentX * width);
-  for (let i = 0; i < componentX; i++) for (let x = 0; x < width; x++) cosX[i * width + x] = Math.cos((Math.PI * x * i) / width);
+  for (let i = 0; i < componentX; i++)
+    for (let x = 0; x < width; x++) cosX[i * width + x] = Math.cos((Math.PI * x * i) / width);
   const cosY = new Float64Array(componentY * height);
-  for (let j = 0; j < componentY; j++) for (let y = 0; y < height; y++) cosY[j * height + y] = Math.cos((Math.PI * y * j) / height);
+  for (let j = 0; j < componentY; j++)
+    for (let y = 0; y < height; y++) cosY[j * height + y] = Math.cos((Math.PI * y * j) / height);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {

@@ -23,10 +23,17 @@ export type PartPlan =
  * How an original of `bytes` goes up: one PUT when <= 16 MiB, else 8 MiB parts. When 8 MiB parts
  * would exceed `maxParts`, the part size grows (rounded up to a whole MiB) so the count fits.
  */
-export function planParts(bytes: number, opts: { maxParts?: number; partSize?: number } = {}): PartPlan {
-  if (!Number.isSafeInteger(bytes) || bytes <= 0) throw new RangeError('bytes must be a positive integer');
+export function planParts(
+  bytes: number,
+  opts: { maxParts?: number; partSize?: number } = {},
+): PartPlan {
+  if (!Number.isSafeInteger(bytes) || bytes <= 0)
+    throw new RangeError('bytes must be a positive integer');
   if (bytes <= SINGLE_PUT_MAX_BYTES) return { mode: 'put', bytes };
-  const maxParts = Math.min(Math.max(1, Math.floor(opts.maxParts ?? DEFAULT_MAX_UPLOAD_PARTS)), S3_MAX_PARTS);
+  const maxParts = Math.min(
+    Math.max(1, Math.floor(opts.maxParts ?? DEFAULT_MAX_UPLOAD_PARTS)),
+    S3_MAX_PARTS,
+  );
   let partSize = opts.partSize ?? DEFAULT_PART_SIZE;
   if (Math.ceil(bytes / partSize) > maxParts) {
     partSize = Math.ceil(bytes / maxParts / MiB) * MiB;

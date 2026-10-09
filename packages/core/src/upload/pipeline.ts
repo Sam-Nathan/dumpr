@@ -59,7 +59,11 @@ export const emptyProgress = (): UploadProgressState => ({ variantsDone: [], mul
 
 export interface UploadTransport {
   init(req: UploadInitRequest): Promise<UploadInitResponse>;
-  complete(req: { photo_id: string; parts?: UploadPartEtag[]; blurhash?: string | null }): Promise<UploadCompleteResponse>;
+  complete(req: {
+    photo_id: string;
+    parts?: UploadPartEtag[];
+    blurhash?: string | null;
+  }): Promise<UploadCompleteResponse>;
   /** PUT one whole variant. Resolves with the response ETag (null if not readable). */
   putVariant(
     variant: UploadVariant,
@@ -67,7 +71,11 @@ export interface UploadTransport {
     onProgress: (sentBytes: number) => void,
   ): Promise<{ etag: string | null }>;
   /** PUT one byte range of the original to a presigned part URL. */
-  putPart(part: PartRange, url: string, onProgress: (sentBytes: number) => void): Promise<{ etag: string | null }>;
+  putPart(
+    part: PartRange,
+    url: string,
+    onProgress: (sentBytes: number) => void,
+  ): Promise<{ etag: string | null }>;
 }
 
 export type UploadStage = 'initiating' | 'uploading' | 'completing';
@@ -112,7 +120,9 @@ function variantSize(job: PreparedUpload, v: UploadVariant): number {
 function parseIncomplete(details: unknown): UploadIncompleteDetails {
   const d = (details ?? {}) as Partial<UploadIncompleteDetails>;
   const missing = Array.isArray(d.missing)
-    ? d.missing.filter((v): v is UploadVariant => v === 'thumb' || v === 'display' || v === 'original')
+    ? d.missing.filter(
+        (v): v is UploadVariant => v === 'thumb' || v === 'display' || v === 'original',
+      )
     : [];
   return {
     missing: missing.length ? missing : ['thumb', 'display', 'original'],
@@ -155,7 +165,8 @@ export async function runUpload(
     hooks.onStage?.('initiating', { totalBytes, sentBytes: 0 });
     const res = await transport.init(toInitRequest(job));
     if (res.status === 'duplicate') {
-      if (res.existing_photo_id === job.photoId) return { kind: 'done', status: 'ready', response: null };
+      if (res.existing_photo_id === job.photoId)
+        return { kind: 'done', status: 'ready', response: null };
       return { kind: 'duplicate', existingPhotoId: res.existing_photo_id };
     }
     checkAbort(hooks.signal);
@@ -184,7 +195,8 @@ export async function runUpload(
       return Math.min(s, totalBytes);
     };
     hooks.onStage?.('uploading', { totalBytes, sentBytes: doneBytes() });
-    const report = (inflight: number) => hooks.onProgress?.(Math.min(totalBytes, doneBytes() + inflight), totalBytes);
+    const report = (inflight: number) =>
+      hooks.onProgress?.(Math.min(totalBytes, doneBytes() + inflight), totalBytes);
 
     // Small variants first so the tile has something to show as early as possible.
     for (const v of ['thumb', 'display'] as const) {
@@ -201,7 +213,8 @@ export async function runUpload(
         const { etag } = await transport.putVariant('original', original, report);
         const want = md5HexFromContentHash(job.contentHash);
         // R2's single-PUT ETag is the MD5 of the bytes: a mismatch means they changed in transit.
-        if (etag && want && normalizeEtag(etag) !== want) throw new UploadError('checksum_mismatch');
+        if (etag && want && normalizeEtag(etag) !== want)
+          throw new UploadError('checksum_mismatch');
         await save({ ...p, variantsDone: [...p.variantsDone, 'original'] });
         report(0);
       }
@@ -219,7 +232,11 @@ export async function runUpload(
             break;
           } catch (e) {
             const err = toUploadError(e);
-            if (err.code === 'cancelled' || errorToState(err.code).kind !== 'retryable' || t + 1 >= partRetries) {
+            if (
+              err.code === 'cancelled' ||
+              errorToState(err.code).kind !== 'retryable' ||
+              t + 1 >= partRetries
+            ) {
               throw err;
             }
             await sleep(1000 * 2 ** t);
@@ -227,7 +244,10 @@ export async function runUpload(
         }
         if (!etag) throw new UploadError('missing_etag');
         const mp = p.multipart!;
-        await save({ ...p, multipart: { ...mp, partsDone: [...mp.partsDone, { n: range.n, etag }] } });
+        await save({
+          ...p,
+          multipart: { ...mp, partsDone: [...mp.partsDone, { n: range.n, etag }] },
+        });
         report(0);
       }
     }

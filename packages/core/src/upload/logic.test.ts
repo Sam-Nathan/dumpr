@@ -129,7 +129,15 @@ describe('errorToState', () => {
   });
 
   it('everything else retries', () => {
-    for (const code of ['network', 'timeout', 'internal', 'upload_incomplete', 'url_expired', 'not_authenticated', 'whatever']) {
+    for (const code of [
+      'network',
+      'timeout',
+      'internal',
+      'upload_incomplete',
+      'url_expired',
+      'not_authenticated',
+      'whatever',
+    ]) {
       expect(errorToState(code)).toEqual({ kind: 'retryable', code });
     }
     expect(errorToState(null)).toEqual({ kind: 'retryable', code: 'unknown' });
@@ -137,7 +145,9 @@ describe('errorToState', () => {
   });
 
   it('errorFromResponse reads the envelope or falls back on status', () => {
-    const e = errorFromResponse(422, { error: { code: 'upload_incomplete', message: 'm', details: { missing: ['thumb'] } } });
+    const e = errorFromResponse(422, {
+      error: { code: 'upload_incomplete', message: 'm', details: { missing: ['thumb'] } },
+    });
     expect(e.code).toBe('upload_incomplete');
     expect(e.status).toBe(422);
     expect(e.details).toEqual({ missing: ['thumb'] });
@@ -178,7 +188,11 @@ const validInit = {
 
 describe('validateInitRequest', () => {
   it('accepts a valid body and normalises it', () => {
-    const r = validateInitRequest({ ...validInit, mime: 'IMAGE/JPEG', photo_id: PHOTO.toUpperCase() });
+    const r = validateInitRequest({
+      ...validInit,
+      mime: 'IMAGE/JPEG',
+      photo_id: PHOTO.toUpperCase(),
+    });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.value.mime).toBe('image/jpeg');
@@ -224,7 +238,11 @@ describe('validateInitRequest', () => {
   ];
   for (const [field, patch] of bad) {
     it(`rejects bad ${field} (${JSON.stringify(patch)})`, () => {
-      expect(validateInitRequest({ ...validInit, ...patch })).toEqual({ ok: false, code: 'invalid_input', field });
+      expect(validateInitRequest({ ...validInit, ...patch })).toEqual({
+        ok: false,
+        code: 'invalid_input',
+        field,
+      });
     });
   }
 
@@ -264,7 +282,10 @@ describe('validateCompleteRequest', () => {
   });
 
   it('accepts a bare photo id', () => {
-    expect(validateCompleteRequest({ photo_id: PHOTO })).toEqual({ ok: true, value: { photo_id: PHOTO } });
+    expect(validateCompleteRequest({ photo_id: PHOTO })).toEqual({
+      ok: true,
+      value: { photo_id: PHOTO },
+    });
     expect(validateCompleteRequest({ photo_id: PHOTO, parts: null, blurhash: null })).toEqual({
       ok: true,
       value: { photo_id: PHOTO },
@@ -273,12 +294,24 @@ describe('validateCompleteRequest', () => {
 
   it('rejects malformed input', () => {
     expect(validateCompleteRequest({ photo_id: 'x' })).toMatchObject({ field: 'photo_id' });
-    expect(validateCompleteRequest({ photo_id: PHOTO, parts: 'x' })).toMatchObject({ field: 'parts' });
-    expect(validateCompleteRequest({ photo_id: PHOTO, parts: [{ n: 0, etag: 'a' }] })).toMatchObject({ field: 'parts' });
-    expect(validateCompleteRequest({ photo_id: PHOTO, parts: [{ n: 1, etag: '' }] })).toMatchObject({ field: 'parts' });
-    expect(validateCompleteRequest({ photo_id: PHOTO, parts: [{ n: 1, etag: '<x>' }] })).toMatchObject({ field: 'parts' });
-    expect(validateCompleteRequest({ photo_id: PHOTO, blurhash: 'short' })).toMatchObject({ field: 'blurhash' });
-    expect(validateCompleteRequest({ photo_id: PHOTO, blurhash: 'L'.repeat(101) })).toMatchObject({ field: 'blurhash' });
+    expect(validateCompleteRequest({ photo_id: PHOTO, parts: 'x' })).toMatchObject({
+      field: 'parts',
+    });
+    expect(
+      validateCompleteRequest({ photo_id: PHOTO, parts: [{ n: 0, etag: 'a' }] }),
+    ).toMatchObject({ field: 'parts' });
+    expect(validateCompleteRequest({ photo_id: PHOTO, parts: [{ n: 1, etag: '' }] })).toMatchObject(
+      { field: 'parts' },
+    );
+    expect(
+      validateCompleteRequest({ photo_id: PHOTO, parts: [{ n: 1, etag: '<x>' }] }),
+    ).toMatchObject({ field: 'parts' });
+    expect(validateCompleteRequest({ photo_id: PHOTO, blurhash: 'short' })).toMatchObject({
+      field: 'blurhash',
+    });
+    expect(validateCompleteRequest({ photo_id: PHOTO, blurhash: 'L'.repeat(101) })).toMatchObject({
+      field: 'blurhash',
+    });
   });
 
   it('partsAreComplete', () => {
@@ -291,9 +324,13 @@ describe('validateCompleteRequest', () => {
 
 describe('hash + etag helpers', () => {
   it('converts between hex and content hashes', () => {
-    expect(contentHashFromMd5Hex('0123456789ABCDEF0123456789ABCDEF')).toBe('md5:0123456789abcdef0123456789abcdef');
+    expect(contentHashFromMd5Hex('0123456789ABCDEF0123456789ABCDEF')).toBe(
+      'md5:0123456789abcdef0123456789abcdef',
+    );
     expect(() => contentHashFromMd5Hex('xyz')).toThrow(RangeError);
-    expect(md5HexFromContentHash('md5:0123456789abcdef0123456789abcdef')).toBe('0123456789abcdef0123456789abcdef');
+    expect(md5HexFromContentHash('md5:0123456789abcdef0123456789abcdef')).toBe(
+      '0123456789abcdef0123456789abcdef',
+    );
     expect(md5HexFromContentHash('sha1:abc')).toBeNull();
   });
 
@@ -331,44 +368,79 @@ describe('decideUploadAccess', () => {
   });
 
   it('explains why uploading is not allowed', () => {
-    expect(decideUploadAccess(ctx({ can_upload: false, is_guest: true, guests_allowed: false }))).toEqual({
+    expect(
+      decideUploadAccess(ctx({ can_upload: false, is_guest: true, guests_allowed: false })),
+    ).toEqual({
       ok: false,
       status: 403,
       code: 'guests_not_allowed',
     });
-    expect(decideUploadAccess(ctx({ can_upload: false, allow_uploads: false }))).toMatchObject({ code: 'uploads_disabled' });
+    expect(decideUploadAccess(ctx({ can_upload: false, allow_uploads: false }))).toMatchObject({
+      code: 'uploads_disabled',
+    });
     expect(decideUploadAccess(ctx({ can_upload: false }))).toMatchObject({ code: 'not_a_member' });
-    expect(decideUploadAccess(ctx({ can_upload: false, allow_uploads: false, is_admin: true }))).toMatchObject({
+    expect(
+      decideUploadAccess(ctx({ can_upload: false, allow_uploads: false, is_admin: true })),
+    ).toMatchObject({
       code: 'not_a_member',
     });
   });
 
   it('size and quota', () => {
-    expect(decideUploadAccess(ctx(), { bytes: 50 * MiB + 1 })).toEqual({ ok: false, status: 413, code: 'payload_too_large' });
-    expect(decideUploadAccess(ctx({ storage_used_bytes: 90, storage_limit_bytes: 100 }), { bytes: 11 })).toEqual({
+    expect(decideUploadAccess(ctx(), { bytes: 50 * MiB + 1 })).toEqual({
+      ok: false,
+      status: 413,
+      code: 'payload_too_large',
+    });
+    expect(
+      decideUploadAccess(ctx({ storage_used_bytes: 90, storage_limit_bytes: 100 }), { bytes: 11 }),
+    ).toEqual({
       ok: false,
       status: 413,
       code: 'storage_full',
     });
-    expect(decideUploadAccess(ctx({ storage_used_bytes: 90, storage_limit_bytes: 100 }), { bytes: 10 }).ok).toBe(true);
+    expect(
+      decideUploadAccess(ctx({ storage_used_bytes: 90, storage_limit_bytes: 100 }), { bytes: 10 })
+        .ok,
+    ).toBe(true);
     // size is not re-checked at complete (no bytes)
-    expect(decideUploadAccess(ctx({ storage_used_bytes: 900, storage_limit_bytes: 100 })).ok).toBe(true);
+    expect(decideUploadAccess(ctx({ storage_used_bytes: 900, storage_limit_bytes: 100 })).ok).toBe(
+      true,
+    );
   });
 
   it('guest rules', () => {
-    expect(decideUploadAccess(ctx({ is_guest: true, guest_uploads_review: true }), { bytes: 1 })).toEqual({
+    expect(
+      decideUploadAccess(ctx({ is_guest: true, guest_uploads_review: true }), { bytes: 1 }),
+    ).toEqual({
       ok: true,
       reviewFirst: true,
     });
-    expect(decideUploadAccess(ctx({ guest_uploads_review: true }), { bytes: 1 })).toEqual({ ok: true, reviewFirst: false });
-    expect(decideUploadAccess(ctx({ is_guest: true, guest_photo_count: 300 }), { bytes: 1, guestMaxPhotos: 300 })).toEqual({
+    expect(decideUploadAccess(ctx({ guest_uploads_review: true }), { bytes: 1 })).toEqual({
+      ok: true,
+      reviewFirst: false,
+    });
+    expect(
+      decideUploadAccess(ctx({ is_guest: true, guest_photo_count: 300 }), {
+        bytes: 1,
+        guestMaxPhotos: 300,
+      }),
+    ).toEqual({
       ok: false,
       status: 403,
       code: 'guest_limit_reached',
     });
-    expect(decideUploadAccess(ctx({ is_guest: true, guest_photo_count: 299 }), { bytes: 1, guestMaxPhotos: 300 }).ok).toBe(true);
     expect(
-      decideUploadAccess(ctx({ is_guest: true, guest_photo_count: 5, guest_max_photos_per_roll: 5 }), { bytes: 1 }),
+      decideUploadAccess(ctx({ is_guest: true, guest_photo_count: 299 }), {
+        bytes: 1,
+        guestMaxPhotos: 300,
+      }).ok,
+    ).toBe(true);
+    expect(
+      decideUploadAccess(
+        ctx({ is_guest: true, guest_photo_count: 5, guest_max_photos_per_roll: 5 }),
+        { bytes: 1 },
+      ),
     ).toMatchObject({ code: 'guest_limit_reached' });
   });
 

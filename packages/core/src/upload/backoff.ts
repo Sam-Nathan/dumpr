@@ -20,7 +20,11 @@ export function retryDelayMs(attempt: number, rand: number = Math.random()): num
  * Timestamp (ms) of the next automatic attempt, or null when the item has used its
  * MAX_AUTO_ATTEMPTS automatic attempts and needs a manual retry.
  */
-export function nextRetryAt(attempt: number, now: number, rand: number = Math.random()): number | null {
+export function nextRetryAt(
+  attempt: number,
+  now: number,
+  rand: number = Math.random(),
+): number | null {
   if (attempt >= MAX_AUTO_ATTEMPTS) return null;
   return now + retryDelayMs(attempt, rand);
 }
