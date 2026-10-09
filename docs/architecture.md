@@ -108,13 +108,13 @@ lat double precision, lng double precision, place_name text   -- P2 passport, on
 removed_at timestamptz, removed_by uuid, removed_reason text
 updated_at
 ```
-Indexes: unique `(roll_id, content_hash) where status <> 'removed'` (de-dupe), `(roll_id, sort_at desc, id desc) where status = 'ready'` (grid keyset), `(uploader_id, created_at desc)`, `(crew_id) where kind = 'snap'`.
+Indexes: unique `(roll_id, content_hash) where status <> 'removed'` (de-dupe), `photos_grid_idx (roll_id, sort_at desc, id desc)` (FULL index, not partial: serves the grid for `status in ('ready','review')`, cover selection, roll_header counts and the roll FK cascade; it replaces the old partial grid index and `photos_roll_idx`), `(uploader_id, created_at desc)`, `(crew_id) where kind = 'snap'`. **`rolls.last_activity_at` / `crews.last_activity_at` are never indexed** (every chat message / upload bumps them; an index would make those updates non-HOT). `rolls_crew_idx` is a plain `(crew_id)`; `activity_events` also has a BRIN on `created_at` for the retention delete.
 
 **R2 keys** (set by `upload-init`, never by clients):
 `o/{crew_id}/{roll_id}/{photo_id}` (original, as uploaded), `d/{crew_id}/{roll_id}/{photo_id}.jpg` (display, JPEG, long edge 2048, q≈0.85), `t/{crew_id}/{roll_id}/{photo_id}.jpg` (thumb, JPEG, long edge 480, q≈0.7). Avatars: `a/{user_id}/{uuid}.jpg`.
 
 ### photo_audience
-pk `(photo_id, user_id)`. Used when `visibility = 'selected'` (Ghost Mode).
+pk `(photo_id, user_id)` plus `uploader_id uuid not null` (denormalised from `photos.uploader_id` by a before-insert trigger, so the table's policy never reads `photos`). Used when `visibility = 'selected'` (Ghost Mode). Select policy: `user_id = me or uploader_id = me`.
 
 ### reactions
 pk `(photo_id, user_id)`, `kind reaction_kind`. One reaction per person per photo (re-react replaces). Direct insert/update/delete of own row when the photo is visible and the user is not a guest.
@@ -161,6 +161,8 @@ private.my_roll_ids()        returns uuid[]  -- rolls of my crews + my roll_memb
 private.my_open_roll_ids()   returns uuid[]  -- my_roll_ids() minus sealed ones (reveal_at > now() or locked_until > now())
 private.my_admin_roll_ids()  returns uuid[]  -- rolls where is_roll_admin
 private.my_visible_crew_ids() returns uuid[] -- my_crew_ids() ∪ crews of my roll-only rolls
+private.my_space_user_ids()  returns uuid[]  -- everyone I share a crew / roll with (+ pending join requests to spaces I administer)
+private.my_thread_keys()     returns text[]  -- 'c:<crew>' for my crews + 'r:<roll>' for my_roll_ids(); '{}' for guests (chat policy)
 private.is_crew_admin(crew uuid) returns bool
 private.is_roll_admin(roll uuid) returns bool
 private.can_upload(roll uuid) returns bool   -- access, not deleted, allow_uploads (admins always), guest rules
@@ -171,6 +173,8 @@ private.is_guest() returns bool
 ```sql
 using (roll_id = any ((select private.my_roll_ids())::uuid[]))
 ```
+The array helpers are plpgsql (plan cached) and evaluate `my_roll_ids()` once per call; they are driven by the `crew_members(user_id)` / `roll_members(user_id)` indexes and `rolls(crew_id)` (no scan of `rolls`). `my_roll_ids()` also drops a roll-only membership once the roll's crew is past `purge_after`.
+**Chat:** `messages_select` is `thread_key = any ((select private.my_thread_keys())::text[])`, the column the `(thread_key, created_at desc)` chat index leads with, so a thread read is an index range scan instead of a filter over the whole table. Guests get no keys (no chat).
 
 ### photos select policy (the privacy core)
 ```
@@ -181,8 +185,8 @@ or ( status = 'ready'
            or (visibility = 'selected' and exists (select 1 from photo_audience a
                                                    where a.photo_id = photos.id and a.user_id = (select auth.uid()))) ) )
 or ( status = 'review' and roll_id = any ((select private.my_admin_roll_ids())) )
-or ( kind = 'snap' and status = 'ready' and crew_id = any ((select private.my_crew_ids())) )   -- P2
 ```
+(The P2 `snap` branch was removed until P2 ships; the `selected` check is a plain `exists` on `photo_audience` with `offset 0`, which is safe from recursion because the `photo_audience` policy does not read `photos`. The `exists (select … from photos p where p.id = …)` checks of `reactions` select / insert / update carry `offset 0` too, so the planner keeps them as per-row primary-key probes.)
 Consequences that tests must prove: sealed rolls leak nothing but your own photos; the Surprise honoree cannot see the roll row, its photos, its chat, its activity or its invites; `only_me` photos are uploader-only; `selected` photos are audience-only; removed photos are invisible to everyone but the uploader (uploader sees the `removed` row so the client can show F6 "This photo was removed").
 
 Photos have **no** client insert grant (only `upload-init`, service role). Update: uploader may update `caption`, `chapter_id`, `visibility` (column grants; policy uploader = me). Roll admin changes go through RPCs.
@@ -217,6 +221,8 @@ Error messages are stable snake_case codes the clients map to copy: `not_authent
 | `report(p_target, p_target_id, p_reason)` | auth | report row; reported messages hidden for reporter immediately (client) |
 | `decide_report(p_id, p_action text)` | crew admin | `dismiss` / `remove` |
 | `mark_thread_read(p_thread_key)` / `mark_activity_read(p_ids)` | auth | void |
+| `roll_photos(p_roll_id, p_before_sort_at default null, p_before_id default null, p_chapter_id default null, p_limit default 60)` | **auth, guests included** (security definer) | The grid. Keyset page of `{id, uploader_id, sort_at, width, height, thumb_key, display_key, blurhash, chapter_id, status, visibility, caption}` for `status in ('ready','review')`, newest first (`sort_at desc, id desc`), `limit` clamped to 1..200. Authorises the roll ONCE (member of the crew or roll, crew not past its purge window, roll not deleted, not the hidden Surprise honoree; else `not_a_member`), then walks `photos_grid_idx` with the `photos_select` rules for that roll spelled out: own rows (ready / review) · `ready` + `everyone` or `selected`-for-me in an **open** roll · `review` rows for roll admins. Same rows the RLS select returns for these statuses (pgTAP proves parity per role). Own `pending` / `removed` rows are not part of the grid (the client has them locally). Cursor = the last row's `(sort_at, id)` exactly as printed. |
+| `photos_by_ids(p_ids uuid[])` | auth, guests included (**security invoker**, ≤ 500 ids) | The columns `media-sign` needs in one request: `{id, crew_id, roll_id, uploader_id, thumb_key, display_key, original_key, status, mime, roll_visible, roll_name, allow_downloads, is_uploader, is_admin}`. Primary-key lookups under the caller's RLS: a photo the caller cannot read is simply absent; `roll_visible = false` when the photo is readable but its roll is not. `is_admin` = `rolls.created_by` or host / cohost of the roll's crew. |
 | `home_feed()` | auth | ONE call for B1: `{live_rolls:[...], pending_invites:[...], crews:[{id,name,tint,role,muted,member_count,facepile(≤5),last_activity_at,unread_count,stack:[thumb_key ≤3],live_roll:{id,name}|null}]}` ordered by last_activity_at desc. No N+1 from the client. |
 | `crew_overview(p_crew_id)` | member | crew + members(role) + rolls (id,name,kind,cover thumb_key,photo_count,starts_on,ends_on,sealed,reveal_at) |
 | `roll_header(p_roll_id)` | roll access | roll + chapters + my role/admin flag + counts (`photo_count`, `my_pending`, `sealed`) + contributor facepile |
@@ -224,13 +230,9 @@ Error messages are stable snake_case codes the clients map to copy: `not_authent
 | `my_storage()` | auth | `{used_bytes, limit_bytes|null, by_crew:[{crew_id,name,tint,bytes}]}` |
 | `my_profile_stats()` | auth | `{rolls, crews, photos}` (F5 strip) |
 
-Grid paging is a plain RLS-protected select (keyset):
-```
-from photos select id, uploader_id, sort_at, width, height, thumb_key, display_key, blurhash, chapter_id, status, visibility, caption
-where roll_id = $1 and status in ('ready','review') [and chapter_id = $2]
-and (sort_at, id) < ($cursor_sort_at, $cursor_id) order by sort_at desc, id desc limit 60
-```
-plus the caller's own `pending` rows (they're visible only to the uploader anyway).
+Grid paging is `roll_photos` (keyset, see above): `roll_photos(roll, null, null, chapter?, 60)` for page 1, then `roll_photos(roll, last.sort_at, last.id, chapter?, 60)`. Clients no longer select `photos` directly for the grid (a plain RLS select cannot use the grid index for `status in ('ready','review')` together with the per-row policy and read all of a roll's rows per page). Admin review queues and single-photo reads still select `photos` under RLS.
+
+**Planned, not built (perf review item 14):** a batch `upload-init` for up to 20 photos in one request (one auth + one context query + one insert instead of 20), and folding the edge functions' separate DB calls into `svc_upload_init` / `svc_upload_finalize` RPCs. Until then each photo costs several PostgREST round trips in `upload-init` / `upload-complete`.
 
 ## 6. Triggers
 
@@ -240,6 +242,7 @@ plus the caller's own `pending` rows (they're visible only to the uploader anywa
   * → `ready`: `rolls.photo_count += 1`, `rolls/crews.last_activity_at = now()`, roll/crew `cover_photo_id` set if null, `profiles.storage_used_bytes += bytes`, upsert `upload_batches` for `date_trunc('hour', now())`.
   * `ready` → `removed`: counters down, storage down.
   * `pending` → `review`: activity `guest_review` (instant) to roll admins.
+  * any status change except an insert as `pending`, and any `visibility` change of a ready / review photo: **broadcast** `photos_changed` (`{roll_id}`) on the Realtime channel `roll:<roll_id>` via `realtime.send` (guarded: a no-op where `realtime.send` does not exist, errors are swallowed). `photos` is NOT in the `supabase_realtime` publication any more (postgres_changes evaluated the photo policy per subscriber and row); `messages` and `activity_events` still are. Clients subscribe to `roll:<id>`, debounce ~2 s and refetch page 1 (`['roll-photos', id]`) and the roll header.
 * `messages` after insert: `last_activity_at`, `@handle` mentions → activity `mention` (instant) for mentioned members of the thread.
 * `crew_members` / `roll_members` after insert → activity `joined` (instant=false, no push) to admins.
 * `rolls` after update of `reveal_at` crossing now is handled by the cron job `private.fire_reveals()` (activity `reveal`, instant) — P2, but the function exists.
@@ -248,15 +251,15 @@ plus the caller's own `pending` rows (they're visible only to the uploader anywa
 
 | Job | Schedule | Does |
 |---|---|---|
-| `private.fanout_upload_batches()` | `5 * * * *` | closed hour buckets (`bucket_start < date_trunc('hour', now())`, `notified_at is null`) → one `upload_batch` activity per non-muted member (not the uploader), payload `{count, uploader_name, roll_name, sample_photo_ids}`, `instant=false`; marks notified. Copy: "Diya added 24 to Goa '26". |
-| push dispatch | every minute | `pg_net` POST to Edge Function `push-dispatch` with header `x-cron-secret` (from Vault secret `cron_secret`). |
+| `private.fanout_upload_batches()` | `5 * * * *` | closed hour buckets (`bucket_start < date_trunc('hour', now())`, `notified_at is null`), set-based → **one `upload_batch` activity per (recipient, roll, closed hour)** for every non-muted, non-guest member (not the honoree of a hidden Surprise roll), `instant=false`. Counts exclude the recipient's own uploads and uploaders they blocked. `actor_id` = the recipient's top uploader of that hour; payload `{count, uploaders, uploader_name, actor_name, roll_name, crew_name, sample_photo_ids}` (≤ 4 ids, `ready` + `everyone` photos only, none for sealed rolls). Copy: "Diya added 24 to Goa '26", with several uploaders "Diya and 12 others added 412 to Goa '26". (A 100-uploader hour used to fan out 14,900 rows; it is now 150.) |
+| push dispatch | every minute | `private.call_push_dispatch()` first checks that there is something to claim (same predicate as the claim) and returns without a request when not; otherwise `pg_net` POST to Edge Function `push-dispatch` with header `x-cron-secret` (from Vault secret `cron_secret`). `?job=purge` likewise only fires when `media_purge_queue` has claimable rows. |
 | `private.purge_deleted()` | daily 03:17 | hard-delete crews past `purge_after` (R2 objects are deleted by the `media-purge` path of `account` function — queue rows in `media_purge_queue(key text)`). |
 
 `media_purge_queue(key text pk, enqueued_at)` filled by triggers when photos are removed (after 7 days grace for undo) / crews purged / accounts deleted; drained by `push-dispatch`'s sibling path `?job=purge` (same function, cheap).
 
 ## 8. Edge Functions (Deno, `supabase/functions/<name>/index.ts`)
 
-All functions: deployed with `verify_jwt = false` and authenticate **in code** (works with both the legacy anon JWT and the new `sb_publishable_` keys): `requireUser(req)` reads `Authorization: Bearer <access token>`, calls `admin.auth.getUser(token)`; returns `{ user, isGuest, userClient /* RLS as the user */, admin /* service role */ }`. CORS for `https://dumpr.app`, `http://localhost:3000`, and native (no Origin).
+All functions: deployed with `verify_jwt = false` and authenticate **in code** (works with both the legacy anon JWT and the new `sb_publishable_` keys): `requireUser(req)` reads `Authorization: Bearer <access token>` and verifies it with `admin.auth.getClaims(token)` (signature checked locally against the project's cached JWKS when the project uses asymmetric signing keys, expiry checked; legacy HS256 secrets make supabase-js fall back to one `getUser` call); the claims must have `role = authenticated`, a uuid `sub` and a future `exp` (anon / service-role keys are rejected); `is_anonymous` marks a guest. Returns `{ userId, isGuest, userClient /* RLS as the user */, admin /* service role */ }`. CORS for `https://dumpr.app`, `http://localhost:3000`, and native (no Origin).
 
 Shared (`supabase/functions/_shared/`): `http.ts` (cors, `json()`, `fail(code, status)`), `auth.ts`, `r2.ts` (SigV4 via `aws4fetch`: `presignPut`, `presignGet`, `createMultipart`, `presignPart`, `completeMultipart`, `abortMultipart`, `headObject`, `deleteObjects`), `push.ts` (Expo push, chunks of 100), `env.ts`.
 Errors: `{ "error": { "code": "<snake_code>", "message": "...", "details"?: ... } }` with HTTP 400/401/403/404/409/413/503 (see `_shared/http.ts` `serve()`; a P0001 RPC exception with a snake_code message becomes a 400 with that code).
@@ -265,9 +268,9 @@ Errors: `{ "error": { "code": "<snake_code>", "message": "...", "details"?: ... 
 |---|---|---|
 | `upload-init` | `{photo_id, roll_id, content_hash, mime, bytes, width, height, taken_at?, chapter_id?, caption?, display_bytes, thumb_bytes}` | `{status:'duplicate', existing_photo_id?}` (id only when the caller can see that photo through RLS) or `{status:'upload', photo_id, original: {mode:'put', url, headers, content_length} | {mode:'multipart', upload_id, part_size, parts:[{n,url,content_length}]}, display:{url,headers,content_length}, thumb:{url,headers,content_length}, expires_at}`. **Every presigned PUT signs `content-type` (single PUTs) and `content-length` (exact body size; per part for multipart)**: clients send exactly `headers` and a body of `content_length` bytes (the HTTP stack sets the Content-Length header itself). `display_bytes`/`thumb_bytes` are stored in `media_uploads` and verified exactly by `upload-complete`. More than 500 unfinished (`pending`) uploads per user → 429 `rate_limited`; their bytes count toward the quota. Idempotent on `photo_id` (re-init returns fresh URLs for a `pending` photo owned by caller). Checks: access, `can_upload`, guest limits, `max_photo_bytes`, quota (`storage_used_bytes + bytes > limit` → 413 `storage_full`). Multipart when `bytes > 16 MiB`, part 8 MiB. |
 | `upload-complete` | `{photo_id, parts?:[{n, etag}], blurhash?}` | `{status:'ready'|'review', photo}`. Completes multipart, HEADs all 3 objects (exact sizes: original = `bytes`, display / thumb = the sizes recorded at init; `Content-Type` = declared mime / `image/jpeg`; single-PUT ETag must equal md5 of `content_hash`), flips status. |
-| `media-sign` | `{items:[{photo_id, variant:'thumb'|'display'|'original'}]}` (≤ 300) or `{avatar_keys:[...]}` | `{urls:{[photo_id+':'+variant]: url}, expires_at}`. Selects the photos **through `userClient`** (RLS decides visibility); `original` additionally requires `allow_downloads` unless uploader/admin. URL TTL 6 h. Clients cache by `cacheKey = photo_id:variant`, never by URL. |
+| `media-sign` | `{items:[{photo_id, variant:'thumb'|'display'|'original'}]}` (≤ 300) or `{avatar_keys:[...]}` | `{urls:{[photo_id+':'+variant]: url}, expires_at}`. Reads the photos with ONE call, `userClient.rpc('photos_by_ids')` (security invoker: RLS decides visibility; also returns roll name / `allow_downloads` / uploader + admin flags); `original` additionally requires `allow_downloads` unless uploader/admin. **URL caching:** URLs are signed with the SigV4 time rounded down to the hour and `X-Amz-Expires` = 7 h, so every URL has ≥ 6 h left when handed out and the same photo gets the byte-identical URL for a whole hour (browser / expo-image HTTP cache hits); `response-cache-control=private, max-age=21600` is signed in. `expires_at` = signing hour + 7 h. Clients still cache by `cacheKey = photo_id:variant`, never by URL. |
 | `invite-preview` | `GET ?code=` (anon ok) | `invite_preview` RPC result (called with the caller's `Authorization` when it is a user token, else as anon; user-token responses are `Cache-Control: private, no-store`) + `cover_url` (signed thumb, only when not sealed) + `facepile[].avatar_url`. Used by web landing + OG image + app A4. |
-| `push-dispatch` | cron (`x-cron-secret`) | claims ≤ 500 un-pushed instant events via `private.claim_push_batch()`, honours prefs + mutes, sends Expo pushes, marks `pushed_at`, deletes `DeviceNotRegistered` tokens. `?job=purge` drains `media_purge_queue`. |
+| `push-dispatch` | cron (`x-cron-secret`) | claims ≤ 500 un-pushed events via `private.claim_push_batch()` (**instant rows first**, so an hourly digest can never starve invites / mentions; each row comes with the recipient's tokens, prefs and `muted`, no further queries), honours prefs + mutes, sends Expo pushes, marks `pushed_at`, deletes `DeviceNotRegistered` tokens. `?job=purge` drains `media_purge_queue`. |
 | `account` | `POST {action:'export'}` / `{action:'delete', confirm:'DELETE'}` | export: `{profile, crews, photos:[{id, roll, taken_at, url (24 h)}]}`; delete: refuses `last_host` (list of crews to transfer), queues R2 deletes, deletes auth user. |
 | `send-sms-msg91` | Supabase Send-SMS hook (Standard Webhooks signature, secret `SEND_SMS_HOOK_SECRET`) | sends only to Indian mobiles (`^91[6-9]\d{9}$`, widen with `SMS_ALLOWED_PREFIXES`, else hook error `sms_country_not_supported`); calls MSG91 OTP/Flow API with `MSG91_AUTH_KEY`, `MSG91_TEMPLATE_ID` (DLT), `MSG91_SENDER_ID`; message `"<#> {otp} is your Dumpr code. It expires in 10 minutes. {android_hash}"` where `MSG91_ANDROID_HASH` enables SMS Retriever auto-read. |
 
@@ -331,5 +334,8 @@ Rules: one lime button per screen; every screen has empty / loading / error stat
 
 * **Multipart originals are not MD5-verified (F12d).** A single-PUT original must have an ETag equal to the MD5 in `content_hash`. For a multipart original (> 16 MiB) the ETag is not an MD5, so `upload-complete` checks the exact size and Content-Type only. A corrupted or substituted multipart original is therefore detected by the uploader's own client (`checksum_mismatch` is only possible on single PUTs) or not at all. The object is still bound to the uploader's own signed URLs (exact part lengths), cannot exceed `bytes`, and is only ever served to people who may see the photo. Accepted for the MVP; a server-side checksum job would need R2 `x-amz-checksum-*` support for multipart.
 * **Guest caps are per anonymous account, not per person (F12e).** `guest_max_photos_per_roll`, quotas and the 500-pending-uploads cap are keyed on `auth.uid()`. A guest who signs in anonymously again gets a fresh account and fresh limits. Mitigations to configure on the Supabase project, not in this repo: enable CAPTCHA (Turnstile) for anonymous sign-ins and keep Auth's per-IP anonymous sign-in rate limit low. Hosts can switch a roll's `guests_allowed` / `guest_uploads_review` off at any time.
-* **Realtime DELETE events are not RLS filtered (F13).** Supabase Realtime evaluates RLS for INSERT/UPDATE but cannot for DELETE: every subscriber of `messages`, `activity_events` or `photos` receives the primary key of a deleted row. That discloses an opaque uuid only, as long as the tables keep `REPLICA IDENTITY DEFAULT` (primary key). **Never set `REPLICA IDENTITY FULL` on a published table**: it would put the whole old row (message body, photo keys) into every subscriber's DELETE event. Clients treat DELETE as "remove id from cache" and never rely on its payload.
+* **Realtime DELETE events are not RLS filtered (F13).** Supabase Realtime evaluates RLS for INSERT/UPDATE but cannot for DELETE: every subscriber of `messages` or `activity_events` receives the primary key of a deleted row (`photos` left the publication, see the next item). That discloses an opaque uuid only, as long as the tables keep `REPLICA IDENTITY DEFAULT` (primary key). **Never set `REPLICA IDENTITY FULL` on a published table**: it would put the whole old row (message body, photo keys) into every subscriber's DELETE event. Clients treat DELETE as "remove id from cache" and never rely on its payload.
 * **Presigned content-length enforcement depends on R2 (F2).** The upload URLs sign `content-length`. R2 verifies SigV4 over the signed headers, so a request with another length or content type fails with 403 `SignatureDoesNotMatch`; this has been checked against the signing code (`X-Amz-SignedHeaders=content-length;content-type;host`) but not against a live bucket. `upload-complete` re-checks sizes and Content-Type with HEAD, so a bypass would still be caught before a photo becomes `ready`.
+* **Photo changes are announced on a public broadcast channel (perf review item 9).** `roll:<roll_id>` / `photos_changed` carries only `{roll_id}` and is not private: anyone who knows a roll's uuid (an opaque, unguessable id) can subscribe and learn that "something changed in this roll", at most once per photo state change. It never carries photo data, keys or user ids, and every read still goes through `roll_photos` / RLS. Switching to private channels would need Realtime Authorization policies on `realtime.messages`; accepted for the MVP. The broadcast is best effort (a failed `realtime.send` is swallowed, the client also refetches on focus / pull-to-refresh).
+* **`getClaims` trusts the signature, not the Auth server (perf review item 7).** With asymmetric JWT signing keys `requireUser` no longer asks the Auth server whether a session still exists, so a token of a user who was just banned / signed out remains accepted by the Edge Functions until its `exp` (default 1 h; it is also still accepted by PostgREST for the same time, as before). Projects on the legacy HS256 secret keep the `getUser` round trip.
+* **Signed GET URLs are stable for an hour (perf review item 15).** Because the URL of a photo is identical for the whole signing hour and valid for 7 h, a URL that leaked can be replayed until it expires even after the photo was hidden or removed; the previous 6 h window grew by up to one hour. Photo bytes in R2 are only ever reachable through such URLs.

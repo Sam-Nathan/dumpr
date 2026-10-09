@@ -2,7 +2,26 @@
 import { HttpError, isUuid } from '../_shared/http.ts';
 import { avatarKeyOwner } from '../_shared/r2.ts';
 
-export const SIGN_TTL_S = 6 * 60 * 60; // 6 h
+/** Every signed GET URL has at least this long to live when it is handed out. */
+export const MIN_VALID_S = 6 * 60 * 60; // 6 h
+/**
+ * URLs are signed at the top of the hour (see signingHour) and valid for 7 h from THAT instant, so a URL handed
+ * out at 10:59:59 still has >= 6 h left, and every request within an hour gets the byte-identical URL (the
+ * browser / expo-image HTTP cache can reuse it).
+ */
+export const SIGN_TTL_S = MIN_VALID_S + 60 * 60;
+/** Sent as response-cache-control: the object may be cached privately for as long as the URL is guaranteed valid. */
+export const GET_CACHE_CONTROL = `private, max-age=${MIN_VALID_S}`;
+
+/** `now` rounded down to the hour: the SigV4 timestamp of every URL signed during that hour. */
+export function signingHour(now: number = Date.now()): Date {
+  return new Date(Math.floor(now / 3_600_000) * 3_600_000);
+}
+
+/** When URLs signed at `signedAt` stop working. */
+export function urlExpiry(signedAt: Date): Date {
+  return new Date(signedAt.getTime() + SIGN_TTL_S * 1000);
+}
 export const MAX_ITEMS = 300;
 export const MAX_AVATARS = 100;
 
@@ -72,6 +91,7 @@ export function parseSignRequest(body: unknown): SignRequest {
   return { kind: 'avatars', keys: [...new Set(keys as string[])] };
 }
 
+/** A row of public.photos_by_ids(): the photo + what the caller may do with its roll (all decided by RLS in the DB). */
 export interface PhotoRow {
   id: string;
   crew_id: string;
@@ -82,6 +102,13 @@ export interface PhotoRow {
   original_key: string;
   status: 'pending' | 'ready' | 'review' | 'removed';
   mime?: string | null;
+  /** false = the photo is readable but its roll is not (treated like a missing photo for originals) */
+  roll_visible: boolean;
+  roll_name: string | null;
+  allow_downloads: boolean | null;
+  is_uploader: boolean;
+  /** rolls.created_by or host / cohost of the roll's crew */
+  is_admin: boolean;
 }
 
 export function keyFor(p: Pick<PhotoRow, 'thumb_key' | 'display_key' | 'original_key'>, v: Variant): string {

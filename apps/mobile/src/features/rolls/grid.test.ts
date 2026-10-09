@@ -5,7 +5,6 @@ import {
   flattenSections,
   dayTitle,
   groupIntoSections,
-  keysetFilter,
   nextCursor,
   sectionModeFor,
   PHOTOS_PAGE_SIZE,
@@ -19,18 +18,7 @@ const photo = (id: string, sortAt: string, chapter: string | null = null) => ({
   chapter_id: chapter,
 });
 
-describe('keyset paging', () => {
-  it('builds the (sort_at, id) < cursor filter with quoted values', () => {
-    const f = keysetFilter({ sortAt: '2026-11-23T21:47:10.123456+00:00', id: 'abc' });
-    expect(f).toBe(
-      'sort_at.lt."2026-11-23T21:47:10.123456+00:00",and(sort_at.eq."2026-11-23T21:47:10.123456+00:00",id.lt."abc")',
-    );
-  });
-
-  it('escapes quotes so a value can never break out of the filter', () => {
-    expect(keysetFilter({ sortAt: 'x"),or(id.neq.1', id: 'y' })).toContain('\\"');
-  });
-
+describe('keyset cursor', () => {
   it('returns a cursor only after a full page', () => {
     const full = Array.from({ length: PHOTOS_PAGE_SIZE }, (_, i) =>
       photo(`p${i}`, `2026-01-01T00:00:${String(i % 60).padStart(2, '0')}Z`),

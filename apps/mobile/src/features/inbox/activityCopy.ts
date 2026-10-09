@@ -129,10 +129,13 @@ export function buildActivityView(e: ActivityEvent, now: number = Date.now()): A
     case 'upload_batch': {
       const count = num(p.count) ?? 0;
       const who = str(p.uploader_name) ?? actor;
+      // hourly digest row: `uploaders` people, `uploader_name` is the top one ("Diya and 12 others added 412 photos")
+      const others = Math.max((num(p.uploaders) ?? 1) - 1, 0);
       return {
         ...base,
         segments: [
           seg(who, true),
+          ...(others > 0 ? [seg(` and ${pluralize(others, 'other')}`)] : []),
           seg(count > 0 ? ` added ${pluralize(count, 'photo')} to ` : ' added photos to '),
           seg(place, true),
         ],

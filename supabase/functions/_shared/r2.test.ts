@@ -44,6 +44,30 @@ Deno.test('GET URLs stay host-only', async () => {
   assertEquals(signedHeaders(await r2.presignGet(KEY)), ['host']);
 });
 
+Deno.test('GET URLs signed at the same instant are byte-identical (cache-stable) and carry the pinned date', async () => {
+  const at = new Date(Date.UTC(2026, 9, 9, 18, 0, 0));
+  const opts = { expiresIn: 25200, signedAt: at, cacheControl: 'private, max-age=21600' };
+  const a = await r2.presignGet(KEY, opts);
+  const b = await r2.presignGet(KEY, opts);
+  assertEquals(a, b);
+  const u = new URL(a);
+  assertEquals(u.searchParams.get('X-Amz-Date'), '20261009T180000Z');
+  assertEquals(u.searchParams.get('X-Amz-Expires'), '25200');
+  assertEquals(u.searchParams.get('response-cache-control'), 'private, max-age=21600');
+  assertEquals(signedHeaders(a), ['host']);
+  // the next hour signs differently; so does a different cache policy (it is part of the signature)
+  const next = await r2.presignGet(KEY, { ...opts, signedAt: new Date(at.getTime() + 3_600_000) });
+  assertNotEquals(sig(a), sig(next));
+  assertNotEquals(sig(a), sig(await r2.presignGet(KEY, { ...opts, cacheControl: 'public, max-age=1' })));
+  assertNotEquals(a, await r2.presignGet(KEY, { expiresIn: 25200, signedAt: at }));
+});
+
+Deno.test('GET URL with a download name keeps both response overrides', async () => {
+  const u = new URL(await r2.presignGet(KEY, { downloadName: 'a"b.jpg', cacheControl: 'private, max-age=1', signedAt: new Date(0) }));
+  assertEquals(u.searchParams.get('response-content-disposition'), 'attachment; filename="ab.jpg"');
+  assertEquals(u.searchParams.get('response-cache-control'), 'private, max-age=1');
+});
+
 Deno.test('a content length must be a positive integer', async () => {
   for (const bad of [0, -1, 1.5, NaN]) {
     assertThrows(() => {

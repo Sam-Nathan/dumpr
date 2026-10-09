@@ -1,5 +1,5 @@
 /**
- * Pure helpers for the B3 Roll grid: keyset paging (architecture §5), grouping into day / chapter
+ * Pure helpers for the B3 Roll grid: keyset cursors for `roll_photos` (architecture §5), grouping into day / chapter
  * sections and chunking into rows for the FlashList. No React Native imports (unit-tested).
  */
 import { monthShort } from '../../lib/format';
@@ -42,20 +42,6 @@ export function nextCursor(
   if (page.length < pageSize) return undefined;
   const last = page[page.length - 1];
   return last ? cursorOf(last) : undefined;
-}
-
-/**
- * PostgREST `or=` expression for `(sort_at, id) < (cursor.sortAt, cursor.id)` with the order
- * `sort_at desc, id desc`. Values are double-quoted so `:` `+` `.` in timestamps are safe.
- */
-export function keysetFilter(c: GridCursor): string {
-  const s = quote(c.sortAt);
-  const i = quote(c.id);
-  return `sort_at.lt.${s},and(sort_at.eq.${s},id.lt.${i})`;
-}
-
-function quote(v: string): string {
-  return `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
 // ---- sections ------------------------------------------------------------------------------

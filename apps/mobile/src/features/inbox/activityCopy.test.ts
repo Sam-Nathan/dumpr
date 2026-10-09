@@ -63,6 +63,27 @@ describe('buildActivityView', () => {
     expect(v.unread).toBe(false);
     expect(v.href).toBe('/roll/r1');
   });
+
+  it('upload_batch digest with several uploaders names the top one and counts the others', () => {
+    const v = buildActivityView(
+      ev({
+        kind: 'upload_batch',
+        actor: null,
+        payload: { count: 412, uploaders: 13, uploader_name: 'Diya', roll_name: "Goa '26" },
+      }),
+      NOW,
+    );
+    expect(text(v)).toBe("Diya and 12 others added 412 photos to Goa '26");
+    const two = buildActivityView(
+      ev({
+        kind: 'upload_batch',
+        actor: null,
+        payload: { count: 14, uploaders: 2, uploader_name: 'Diya', roll_name: "Goa '26" },
+      }),
+      NOW,
+    );
+    expect(text(two)).toBe("Diya and 1 other added 14 photos to Goa '26");
+  });
   it('reaction names are joined and reactions are words', () => {
     const v = buildActivityView(
       ev({

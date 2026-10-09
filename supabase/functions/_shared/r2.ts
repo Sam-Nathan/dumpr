@@ -9,7 +9,15 @@ export interface R2 {
    * so R2 rejects a request that sends another type or a body of another length.
    */
   presignPut(key: string, opts: { contentType: string; contentLength: number; expiresIn?: number }): Promise<string>;
-  presignGet(key: string, opts?: { expiresIn?: number; downloadName?: string }): Promise<string>;
+  /**
+   * Presigned GET. `signedAt` pins the SigV4 timestamp (X-Amz-Date): with the same key, `signedAt` and options the
+   * URL is byte-identical, so callers that round it down (to the hour) hand out cache-stable URLs.
+   * `cacheControl` becomes `response-cache-control` (R2 answers with that Cache-Control header).
+   */
+  presignGet(
+    key: string,
+    opts?: { expiresIn?: number; downloadName?: string; signedAt?: Date; cacheControl?: string },
+  ): Promise<string>;
   createMultipart(key: string, contentType: string): Promise<string>;
   /** Presigned multipart part; `content-length` is signed, so a part is exactly `contentLength` bytes. */
   presignPart(key: string, uploadId: string, partNumber: number, contentLength: number, expiresIn?: number): Promise<string>;
@@ -41,12 +49,17 @@ export function createR2(cfg: R2Config): R2 {
 
   // aws4fetch leaves content-type / content-length out of X-Amz-SignedHeaders unless allHeaders is on; with
   // headers given we sign exactly those (plus host), otherwise only host (GET).
-  async function presign(method: string, url: URL, expiresIn: number, headers?: Record<string, string>) {
+  async function presign(method: string, url: URL, expiresIn: number, headers?: Record<string, string>, signedAt?: Date) {
     url.searchParams.set('X-Amz-Expires', String(expiresIn));
     const signed = await aws.sign(url.toString(), {
       method,
       headers,
-      aws: { signQuery: true, allHeaders: headers !== undefined },
+      aws: {
+        signQuery: true,
+        allHeaders: headers !== undefined,
+        // aws4fetch takes 'YYYYMMDDTHHMMSSZ'; omitted = now
+        ...(signedAt ? { datetime: signedAt.toISOString().replace(/[:-]|\.\d{3}/g, '') } : {}),
+      },
     });
     return signed.url;
   }
@@ -69,12 +82,13 @@ export function createR2(cfg: R2Config): R2 {
         'content-length': String(contentLength),
       });
     },
-    presignGet(key, { expiresIn = DEFAULT_TTL, downloadName } = {}) {
+    presignGet(key, { expiresIn = DEFAULT_TTL, downloadName, signedAt, cacheControl } = {}) {
       const url = objectUrl(key);
       if (downloadName) {
         url.searchParams.set('response-content-disposition', `attachment; filename="${downloadName.replace(/"/g, '')}"`);
       }
-      return presign('GET', url, expiresIn);
+      if (cacheControl) url.searchParams.set('response-cache-control', cacheControl);
+      return presign('GET', url, expiresIn, undefined, signedAt);
     },
     async createMultipart(key, contentType) {
       const url = objectUrl(key);

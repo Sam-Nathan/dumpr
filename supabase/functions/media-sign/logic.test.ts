@@ -1,5 +1,18 @@
-import { assertEquals, assertThrows } from 'jsr:@std/assert@1';
-import { downloadName, extFor, isAvatarKey, keyFor, originalAllowed, parseSignRequest, signableAvatarKeys } from './logic.ts';
+import { assert, assertEquals, assertThrows } from 'jsr:@std/assert@1';
+import {
+  downloadName,
+  extFor,
+  GET_CACHE_CONTROL,
+  isAvatarKey,
+  keyFor,
+  MIN_VALID_S,
+  originalAllowed,
+  parseSignRequest,
+  SIGN_TTL_S,
+  signableAvatarKeys,
+  signingHour,
+  urlExpiry,
+} from './logic.ts';
 
 const ID = '3f0c1d2e-4a5b-4c6d-8e7f-0123456789ab';
 const U1 = '11111111-1111-4111-8111-111111111111';
@@ -71,4 +84,26 @@ Deno.test('F1: avatar keys are signed only under the owning profile id', () => {
   assertEquals([...signableAvatarKeys([{ id: U2, avatar_key: AV2 }], [AV1])], []); // not requested
   assertEquals([...signableAvatarKeys([{ id: U2.toUpperCase(), avatar_key: AV2 }], [AV2])], [AV2]);
   assertEquals(isAvatarKey(stolenOriginal), false);
+});
+
+Deno.test('signing hour: rounded down to the top of the hour', () => {
+  const t = Date.UTC(2026, 9, 9, 18, 59, 59, 999);
+  assertEquals(signingHour(t).toISOString(), '2026-10-09T18:00:00.000Z');
+  assertEquals(signingHour(Date.UTC(2026, 9, 9, 19, 0, 0, 0)).toISOString(), '2026-10-09T19:00:00.000Z');
+  // every instant within the hour maps to the same signing time, so the URL is stable for the hour
+  assertEquals(signingHour(t).getTime(), signingHour(Date.UTC(2026, 9, 9, 18, 0, 0, 0)).getTime());
+});
+
+Deno.test('every URL has at least 6 h left when it is handed out', () => {
+  assertEquals(MIN_VALID_S, 6 * 3600);
+  assertEquals(SIGN_TTL_S, 7 * 3600);
+  for (const minute of [0, 1, 30, 59]) {
+    const now = Date.UTC(2026, 9, 9, 18, minute, 59, 999);
+    const left = (urlExpiry(signingHour(now)).getTime() - now) / 1000;
+    assert(left >= MIN_VALID_S, `minute ${minute}: ${left}s left`);
+  }
+});
+
+Deno.test('cache-control matches the guaranteed lifetime', () => {
+  assertEquals(GET_CACHE_CONTROL, 'private, max-age=21600');
 });

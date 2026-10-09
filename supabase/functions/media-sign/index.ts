@@ -1,11 +1,12 @@
-// media-sign: batch-sign R2 GET URLs. Visibility is decided by RLS: photos and profiles are selected
-// through the caller's userClient, so anything the caller cannot see simply comes back as "unavailable".
+// media-sign: batch-sign R2 GET URLs. Visibility is decided by RLS: photos come from photos_by_ids() (security invoker) and
+// profiles are selected, both through the caller's userClient, so anything the caller cannot see comes back as "unavailable".
 import { HttpError, json, readJson, serve } from '../_shared/http.ts';
 import { requireUser } from '../_shared/auth.ts';
 import { r2Config } from '../_shared/env.ts';
 import { createR2, type R2 } from '../_shared/r2.ts';
 import {
   downloadName,
+  GET_CACHE_CONTROL,
   itemKey,
   keyFor,
   originalAllowed,
@@ -13,11 +14,15 @@ import {
   type PhotoRow,
   SIGN_TTL_S,
   signableAvatarKeys,
+  signingHour,
   type Unavailable,
+  urlExpiry,
 } from './logic.ts';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 const IN_CHUNK = 100; // keep PostgREST URLs short
+
+type GetOpts = { expiresIn: number; signedAt: Date; cacheControl: string };
 
 function chunks<T>(a: T[], n = IN_CHUNK): T[][] {
   const out: T[][] = [];
@@ -36,54 +41,18 @@ async function selectIn<T>(db: SupabaseClient, table: string, cols: string, col:
   return parts.flat();
 }
 
-interface RollRow {
-  id: string;
-  name: string;
-  crew_id: string;
-  created_by: string | null;
-  allow_downloads: boolean | null;
-}
-
 async function signItems(
-  userId: string,
   userClient: SupabaseClient,
   r2: R2,
   items: { photo_id: string; variant: 'thumb' | 'display' | 'original' }[],
+  get: GetOpts,
 ) {
+  // ONE request: photos + roll name / allow_downloads + uploader / admin flags, all decided by RLS in the DB
+  // (ids that are not readable are simply absent). Replaces three PostgREST round trips.
   const ids = [...new Set(items.map((i) => i.photo_id))];
-  const photos = new Map(
-    (await selectIn<PhotoRow>(
-      userClient,
-      'photos',
-      'id, crew_id, roll_id, uploader_id, thumb_key, display_key, original_key, status, mime',
-      'id',
-      ids,
-    )).map((p) => [p.id, p]),
-  );
-
-  // Roll metadata is only needed for originals (allow_downloads, filename, admin check).
-  const originals = items.filter((i) => i.variant === 'original' && photos.has(i.photo_id));
-  const rollIds = [...new Set(originals.map((i) => photos.get(i.photo_id)!.roll_id).filter((x): x is string => !!x))];
-  const rolls = new Map<string, RollRow>();
-  const adminCrews = new Set<string>();
-  if (rollIds.length) {
-    for (const r of await selectIn<RollRow>(userClient, 'rolls', 'id, name, crew_id, created_by, allow_downloads', 'id', rollIds)) {
-      rolls.set(r.id, r);
-    }
-    const crewIds = [...new Set([...rolls.values()].map((r) => r.crew_id))];
-    if (crewIds.length) {
-      for (const part of chunks(crewIds)) {
-        const { data, error } = await userClient
-          .from('crew_members')
-          .select('crew_id, role')
-          .eq('user_id', userId)
-          .in('crew_id', part)
-          .in('role', ['host', 'cohost']);
-        if (error) throw error;
-        for (const m of (data ?? []) as { crew_id: string }[]) adminCrews.add(m.crew_id);
-      }
-    }
-  }
+  const { data, error } = await userClient.rpc('photos_by_ids', { p_ids: ids });
+  if (error) throw error;
+  const photos = new Map(((data ?? []) as PhotoRow[]).map((p) => [p.id, p]));
 
   const urls: Record<string, string> = {};
   const unavailable: Record<string, Unavailable> = {};
@@ -96,34 +65,29 @@ async function signItems(
         return;
       }
       if (it.variant === 'original') {
-        const roll = p.roll_id ? rolls.get(p.roll_id) : undefined;
-        if (p.roll_id && !roll) {
+        if (p.roll_id && !p.roll_visible) {
           // Roll not readable through RLS: treat like a missing photo.
           unavailable[k] = 'not_found';
           return;
         }
-        const ok = originalAllowed({
-          isUploader: p.uploader_id === userId,
-          isAdmin: !!roll && (roll.created_by === userId || adminCrews.has(roll.crew_id)),
-          allowDownloads: roll?.allow_downloads,
-        });
+        const ok = originalAllowed({ isUploader: p.is_uploader, isAdmin: p.is_admin, allowDownloads: p.allow_downloads });
         if (!ok) {
           unavailable[k] = 'downloads_disabled';
           return;
         }
         urls[k] = await r2.presignGet(keyFor(p, 'original'), {
-          expiresIn: SIGN_TTL_S,
-          downloadName: downloadName(roll?.name, p.id, p.mime),
+          ...get,
+          downloadName: downloadName(p.roll_name, p.id, p.mime),
         });
         return;
       }
-      urls[k] = await r2.presignGet(keyFor(p, it.variant), { expiresIn: SIGN_TTL_S });
+      urls[k] = await r2.presignGet(keyFor(p, it.variant), get);
     }),
   );
   return { urls, unavailable };
 }
 
-async function signAvatars(userClient: SupabaseClient, r2: R2, keys: string[]) {
+async function signAvatars(userClient: SupabaseClient, r2: R2, keys: string[], get: GetOpts) {
   // profiles RLS = self or shares a space, so strangers' avatars are not returned.
   const rows = await selectIn<{ id: string; avatar_key: string | null }>(userClient, 'profiles', 'id, avatar_key', 'avatar_key', keys);
   const allowed = signableAvatarKeys(rows, keys);
@@ -132,22 +96,25 @@ async function signAvatars(userClient: SupabaseClient, r2: R2, keys: string[]) {
   await Promise.all(
     keys.map(async (k) => {
       if (!allowed.has(k)) unavailable[k] = 'not_found';
-      else urls[k] = await r2.presignGet(k, { expiresIn: SIGN_TTL_S });
+      else urls[k] = await r2.presignGet(k, get);
     }),
   );
   return { urls, unavailable };
 }
 
 const handler = serve(async (req) => {
-  const { userId, userClient } = await requireUser(req, { allowGuest: true });
+  const { userClient } = await requireUser(req, { allowGuest: true });
   const parsed = parseSignRequest(await readJson(req, 64_000));
   const cfg = r2Config();
   if (!cfg) throw new HttpError(503, 'storage_not_configured', 'Photos are temporarily unavailable');
   const r2 = createR2(cfg);
-  const expires_at = new Date(Date.now() + SIGN_TTL_S * 1000).toISOString();
+  // Signed at the top of the hour: same input -> same URL for the whole hour (HTTP-cacheable), and >= 6 h left.
+  const signedAt = signingHour();
+  const get: GetOpts = { expiresIn: SIGN_TTL_S, signedAt, cacheControl: GET_CACHE_CONTROL };
+  const expires_at = urlExpiry(signedAt).toISOString();
   const result = parsed.kind === 'items'
-    ? await signItems(userId, userClient, r2, parsed.items)
-    : await signAvatars(userClient, r2, parsed.keys);
+    ? await signItems(userClient, r2, parsed.items, get)
+    : await signAvatars(userClient, r2, parsed.keys, get);
   // `urls` keys: "<photo_id>:<variant>" for items, the avatar key itself for avatars.
   // `unavailable` lists requested keys that were not signed and why (not_found | downloads_disabled).
   return json({ urls: result.urls, unavailable: result.unavailable, expires_at }, 200, req, {

@@ -1,5 +1,5 @@
 // Notification copy + routing (pure). Rules from design-system §10: warm, specific, never blames the user;
-// batch uploads read "Diya added 24 to Goa '26"; reveals read "Goa '26 is revealed" / "312 photos from 6 phones. You're in 41."
+// batch uploads read "Diya added 24 to Goa '26" (hourly digest with several uploaders: "Diya and 12 others added 412 to Goa '26"); reveals read "Goa '26 is revealed" / "312 photos from 6 phones. You're in 41."
 // `data` carries a deep-link and ids only, never photo content.
 import type { PushChannel } from '../_shared/push.ts';
 
@@ -26,6 +26,8 @@ export interface PushEvent {
   actor_id: string | null;
   payload: Record<string, unknown>;
   created_at: string | null;
+  /** From the claim RPC: the recipient muted this crew or roll. Absent / false = not muted. */
+  muted?: boolean;
 }
 
 export interface Names {
@@ -89,20 +91,11 @@ export function normalizePrefs(p: Record<string, unknown> | null | undefined): P
   return out;
 }
 
-export interface MuteSets {
-  /** `${userId}:${crewId}` */
-  crews: ReadonlySet<string>;
-  /** `${userId}:${rollId}` */
-  rolls: ReadonlySet<string>;
-}
-
-export function shouldDeliver(ev: PushEvent, prefs: PushPrefs, mutes: MuteSets): boolean {
+export function shouldDeliver(ev: PushEvent, prefs: PushPrefs): boolean {
   const key = prefKeyFor(ev.kind);
   if (key && !prefs[key]) return false;
-  if (!IGNORE_MUTE.has(ev.kind)) {
-    if (ev.crew_id && mutes.crews.has(`${ev.recipient_id}:${ev.crew_id}`)) return false;
-    if (ev.roll_id && mutes.rolls.has(`${ev.recipient_id}:${ev.roll_id}`)) return false;
-  }
+  // `muted` comes with the claim (crew_members.muted or roll_members.muted of the recipient): no second query
+  if (ev.muted === true && !IGNORE_MUTE.has(ev.kind)) return false;
   return true;
 }
 
@@ -177,7 +170,10 @@ export function buildNotification(ev: PushEvent, looked: Names = {}): Notificati
       return out(`${actor} joined ${space}`);
     case 'upload_batch': {
       const count = num(p.count) ?? num(p.photo_count);
-      return out(count ? `${actor} added ${count.toLocaleString('en-US')} to ${space}` : `${actor} added photos to ${space}`, 'Tap to see them.');
+      // hourly digest row (recipient, roll, hour): `uploaders` people added `count` photos, `actor` is the top one
+      const others = Math.max((num(p.uploaders) ?? 1) - 1, 0);
+      const who = others > 0 ? `${actor} and ${plural(others, 'other', 'others')}` : actor;
+      return out(count ? `${who} added ${count.toLocaleString('en-US')} to ${space}` : `${who} added photos to ${space}`, 'Tap to see them.');
     }
     case 'mention':
       return out(`${actor} mentioned you in ${crew ?? roll ?? 'a chat'}`);
@@ -278,5 +274,6 @@ export function toEvent(r: Record<string, unknown>): PushEvent | null {
     actor_id: s(r.actor_id),
     payload,
     created_at: s(r.created_at),
+    muted: r.muted === true,
   };
 }

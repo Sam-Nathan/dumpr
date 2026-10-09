@@ -1,5 +1,5 @@
-// push-dispatch: cron-invoked (x-cron-secret). Claims un-pushed instant activity events, applies prefs and
-// mutes, sends Expo pushes, deletes dead tokens and marks events pushed. `?job=purge` drains media_purge_queue.
+// push-dispatch: cron-invoked (x-cron-secret). Claims un-pushed activity events (instant ones first; mutes, prefs
+// and tokens come with the claim), applies prefs and mutes, sends Expo pushes, deletes dead tokens and marks events pushed. `?job=purge` drains media_purge_queue.
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { HttpError, json, serve } from '../_shared/http.ts';
 import { adminClient, requireCron } from '../_shared/auth.ts';
@@ -36,14 +36,11 @@ async function selectIn<T>(
   cols: string,
   col: string,
   values: readonly string[],
-  extra?: (q: any) => any,
 ): Promise<T[]> {
   if (values.length === 0) return [];
   const parts = await Promise.all(
     chunks(values).map(async (vals) => {
-      let q = db.from(table).select(cols).in(col, vals);
-      if (extra) q = extra(q);
-      const { data, error } = await q;
+      const { data, error } = await db.from(table).select(cols).in(col, vals);
       if (error) throw error;
       return (data ?? []) as T[];
     }),
@@ -58,7 +55,8 @@ async function dispatch(admin: SupabaseClient, started: number) {
   if (error) throw error;
   const rawRows = (Array.isArray(raw) ? raw : []) as Record<string, unknown>[];
   const events: PushEvent[] = [];
-  // Optional extras the claim RPC may already include (tokens / prefs / muted); used before querying tables.
+  // The claim RPC already includes tokens / prefs (and `muted`, read by toEvent); tables are queried only for
+  // recipients it did not cover.
   const embeddedTokens = new Map<string, string[]>();
   const embeddedPrefs = new Map<string, PushPrefs>();
   for (const r of rawRows) {
@@ -79,17 +77,13 @@ async function dispatch(admin: SupabaseClient, started: number) {
   const recipients = uniq(live.map((e) => e.recipient_id));
   const needPrefs = recipients.filter((u) => !embeddedPrefs.has(u));
   const needTokens = recipients.filter((u) => !embeddedTokens.has(u));
-  const crewIds = uniq(live.map((e) => e.crew_id));
-  const rollIds = uniq(live.map((e) => e.roll_id));
   const actorIds = uniq(live.filter((e) => !(e.payload.actor_name ?? e.payload.uploader_name ?? e.payload.inviter_name)).map((e) => e.actor_id));
   const needCrewNames = uniq(live.filter((e) => !e.payload.crew_name).map((e) => e.crew_id));
   const needRollNames = uniq(live.filter((e) => !e.payload.roll_name || e.kind === 'reveal').map((e) => e.roll_id));
 
-  const [prefRows, tokenRows, crewMutes, rollMutes, profiles, crews, rolls] = await Promise.all([
+  const [prefRows, tokenRows, profiles, crews, rolls] = await Promise.all([
     selectIn<Record<string, unknown> & { user_id: string }>(admin, 'notification_prefs', '*', 'user_id', needPrefs),
     selectIn<{ user_id: string; token: string }>(admin, 'push_tokens', 'user_id, token', 'user_id', needTokens),
-    selectIn<{ user_id: string; crew_id: string }>(admin, 'crew_members', 'user_id, crew_id', 'crew_id', crewIds, (q) => q.eq('muted', true)),
-    selectIn<{ user_id: string; roll_id: string }>(admin, 'roll_members', 'user_id, roll_id', 'roll_id', rollIds, (q) => q.eq('muted', true)),
     selectIn<{ id: string; display_name: string }>(admin, 'profiles', 'id, display_name', 'id', actorIds),
     selectIn<{ id: string; name: string }>(admin, 'crews', 'id, name', 'id', needCrewNames),
     selectIn<{ id: string; name: string; photo_count: number }>(admin, 'rolls', 'id, name, photo_count', 'id', needRollNames),
@@ -100,10 +94,6 @@ async function dispatch(admin: SupabaseClient, started: number) {
   const tokens = new Map<string, string[]>(embeddedTokens);
   for (const u of needTokens) tokens.set(u, []);
   for (const t of tokenRows) tokens.get(t.user_id)!.push(t.token);
-  const mutes = {
-    crews: new Set(crewMutes.map((m) => `${m.user_id}:${m.crew_id}`)),
-    rolls: new Set(rollMutes.map((m) => `${m.user_id}:${m.roll_id}`)),
-  };
   const actorName = new Map(profiles.map((p) => [p.id, p.display_name]));
   const crewName = new Map(crews.map((c) => [c.id, c.name]));
   const rollInfo = new Map(rolls.map((r) => [r.id, r]));
@@ -114,7 +104,7 @@ async function dispatch(admin: SupabaseClient, started: number) {
     const p = prefs.get(recipient) ?? normalizePrefs(null);
     const deliverable: { ev: PushEvent; note: ReturnType<typeof buildNotification> }[] = [];
     for (const ev of evs) {
-      if (!shouldDeliver(ev, p, mutes)) {
+      if (!shouldDeliver(ev, p)) {
         done.add(ev.id);
         continue;
       }

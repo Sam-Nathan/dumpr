@@ -13,6 +13,11 @@ interface Photo {
   blurhash: string | null;
 }
 
+/** A roll_photos() row (only the columns used here). */
+interface GridRow extends Photo {
+  status: string;
+}
+
 const PLACEHOLDER_TINTS = [
   'bg-tint-lilac dark:bg-tint-lilac-dark',
   'bg-tint-sky dark:bg-tint-sky-dark',
@@ -49,20 +54,21 @@ export function LatestPhotos({
     (async () => {
       try {
         const supabase = createClient();
-        const { data, error } = await supabase
-          .from('photos')
-          .select('id, thumb_key, width, height, blurhash, sort_at')
-          .eq('roll_id', rollId)
-          .eq('status', 'ready')
-          .order('sort_at', { ascending: false })
-          .limit(60);
+        // roll_photos authorises the roll once and walks the grid index (newest first); it also returns the
+        // viewer's own / review rows, which this strip does not show.
+        const { data, error } = await supabase.rpc('roll_photos', {
+          p_roll_id: rollId,
+          p_limit: 60,
+        });
         if (error) throw error;
-        const rows = ((data ?? []) as Photo[]).map((r) => ({
-          id: r.id,
-          width: r.width,
-          height: r.height,
-          blurhash: r.blurhash,
-        }));
+        const rows = ((data ?? []) as GridRow[])
+          .filter((r) => r.status === 'ready')
+          .map((r) => ({
+            id: r.id,
+            width: r.width,
+            height: r.height,
+            blurhash: r.blurhash,
+          }));
         const signed = await signMedia(
           await accessToken(),
           rows.map((r) => ({ photo_id: r.id, variant: 'thumb' as const })),

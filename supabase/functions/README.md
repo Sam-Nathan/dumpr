@@ -8,13 +8,13 @@ Supabase hook shape `{ "error": { "http_code", "message" } }`.
 | Function | Method | Auth (in code) | Request | Response |
 |---|---|---|---|---|
 | `upload-init`, `upload-complete` | POST | user (guests ok) | see architecture §8 | owned by the upload engineer |
-| `media-sign` | POST | user, guests ok (`requireUser`) | `{items:[{photo_id, variant: thumb\|display\|original}]}` (1..300) or `{avatar_keys:["a/..."]}` (1..100) | `{urls:{"<photo_id>:<variant>" \| "<avatar_key>": url}, unavailable:{key: "not_found"\|"downloads_disabled"}, expires_at}`; URLs live 6 h; originals carry `dumpr-<roll>-<photo_id>.<ext>` as download name |
+| `media-sign` | POST | user, guests ok (`requireUser`) | `{items:[{photo_id, variant: thumb\|display\|original}]}` (1..300) or `{avatar_keys:["a/..."]}` (1..100) | `{urls:{"<photo_id>:<variant>" \| "<avatar_key>": url}, unavailable:{key: "not_found"\|"downloads_disabled"}, expires_at}`; URLs are signed at the top of the hour and live 7 h (>= 6 h left when handed out; identical for the whole hour, `response-cache-control: private, max-age=21600`); originals carry `dumpr-<roll>-<photo_id>.<ext>` as download name |
 | `invite-preview` | GET `?code=` | none (anon) | query `code` | `invite_preview` RPC result minus `cover_thumb_key`, plus `cover_url`, `host.avatar_url`, `facepile[].avatar_url` (1 h); `404` with `{status:"not_found",...}` for unknown codes; `Cache-Control: public, max-age=60` |
 | `push-dispatch` | POST (`?job=purge` optional) | cron only: header `x-cron-secret` = `CRON_SECRET` | none | push: `{job:"push", claimed, sent, pushes, tokens_removed, marked, retry}`; purge: `{job:"purge", claimed, deleted, failed}` (`503 storage_not_configured` when R2 secrets are missing) |
 | `account` | POST | user, guests ok | `{action:"export"}` or `{action:"delete", confirm:"DELETE"}` | export: `{exported_at, profile, crews:[{id,name,role}], photos:[{id,roll_id,roll_name,taken_at,caption,url}], truncated}` (original URLs, 24 h, cap 5000); delete: `{deleted:true, queued_keys}` or `409 last_host` with `details.crews` |
 | `send-sms-msg91` | POST | Standard Webhooks signature (`SEND_SMS_HOOK_SECRET`) | Supabase Send SMS hook payload `{user:{phone}, sms:{otp}}` | `200 {}` or `500 {error:{http_code:500, message:"sms_failed"\|"sms_not_configured"}}` |
 
-`media-sign` selects photos and avatars through the caller's RLS client; anything the caller cannot see comes back under
+`media-sign` reads photos with one `photos_by_ids` RPC and avatars (`profiles`) through the caller's RLS client; anything the caller cannot see comes back under
 `unavailable` instead of `urls`. `original` additionally needs `rolls.allow_downloads`, unless the caller is the uploader,
 the roll creator, or a host/cohost of the crew.
 

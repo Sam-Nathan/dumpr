@@ -5,15 +5,12 @@ import {
   type InfiniteData,
   type QueryClient,
 } from '@tanstack/react-query';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useEffect, useMemo } from 'react';
-import {
-  keysetFilter,
-  nextCursor,
-  PHOTOS_PAGE_SIZE,
-  type GridCursor,
-} from '../features/rolls/grid';
+import { nextCursor, PHOTOS_PAGE_SIZE, type GridCursor } from '../features/rolls/grid';
 import { AppError, toAppError } from '../lib/errors';
 import { supabase } from '../lib/supabase';
+import { photoUrlCache, signedKey } from './media';
 import { rpc } from './rpc';
 import { crewKey } from './useCrew';
 import { homeFeedKey } from './useHome';
@@ -26,6 +23,9 @@ export const rollPhotosKey = (rollId: string | undefined, chapterId?: string | n
 export const GRID_COLUMNS =
   'id, uploader_id, sort_at, width, height, thumb_key, display_key, blurhash, chapter_id, status, visibility, caption';
 
+/** Burst of `photos_changed` broadcasts -> one refetch of page 1, this long after the first one. */
+export const ROLL_REFRESH_DEBOUNCE_MS = 2000;
+
 /** B3: `roll_header(rollId)`: roll + settings, Chapters, my role flags, counts, contributors. */
 export function useRollHeader(rollId: string | undefined) {
   return useQuery({
@@ -36,25 +36,26 @@ export function useRollHeader(rollId: string | undefined) {
   });
 }
 
-/** One keyset page of the grid (architecture §5): newest first, 60 per page. */
+/**
+ * One keyset page of the grid (architecture §5): newest first, 60 per page, through `roll_photos`
+ * (authorises the roll once instead of evaluating the photo policy per row). The thumbnails of the
+ * whole page are signed in ONE media-sign call as soon as the page arrives, ahead of the tiles.
+ */
 export async function fetchRollPhotosPage(
   rollId: string,
   chapterId: string | null,
   cursor: GridCursor | null,
 ): Promise<GridPhoto[]> {
-  let q = supabase
-    .from('photos')
-    .select(GRID_COLUMNS)
-    .eq('roll_id', rollId)
-    .in('status', ['ready', 'review']);
-  if (chapterId) q = q.eq('chapter_id', chapterId);
-  if (cursor) q = q.or(keysetFilter(cursor));
-  const { data, error } = await q
-    .order('sort_at', { ascending: false })
-    .order('id', { ascending: false })
-    .limit(PHOTOS_PAGE_SIZE);
-  if (error) throw toAppError(error);
-  return (data ?? []) as GridPhoto[];
+  const rows = await rpc<GridPhoto[] | null>('roll_photos', {
+    p_roll_id: rollId,
+    p_before_sort_at: cursor?.sortAt ?? null,
+    p_before_id: cursor?.id ?? null,
+    p_chapter_id: chapterId,
+    p_limit: PHOTOS_PAGE_SIZE,
+  });
+  const page = rows ?? [];
+  photoUrlCache.request(page.map((p) => signedKey(p.id, 'thumb')));
+  return page;
 }
 
 /** The grid as an infinite query (key `['roll-photos', rollId, chapterId | null]`). */
@@ -94,42 +95,43 @@ export function useFlatPhotos(data: InfiniteData<GridPhoto[]> | undefined): Grid
   return useMemo(() => flattenPhotos(data), [data]);
 }
 
-let channelCounter = 0;
-
 /**
- * Live updates for a Roll: photo inserts / updates (a new photo turning `ready`, a removal, a caption)
- * invalidate the grid and header. Invalidations are coalesced so a burst of uploads refetches once.
+ * Live updates for a Roll. Photos are no longer in the postgres_changes publication (that evaluated the photo
+ * policy for every subscriber on every change); the server broadcasts `photos_changed` on the channel
+ * `roll:<id>` when a photo becomes ready / is removed / changes visibility. A burst of events (an upload
+ * flood) refetches page 1 and the header once, `ROLL_REFRESH_DEBOUNCE_MS` after the first one.
  */
 export function useRollRealtime(rollId: string | undefined): void {
   const qc = useQueryClient();
   useEffect(() => {
     if (!rollId) return undefined;
+    let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let channel: RealtimeChannel | null = null;
     const refresh = () => {
       if (timer) return;
       timer = setTimeout(() => {
         timer = null;
         void qc.invalidateQueries({ queryKey: ['roll-photos', rollId] });
         void qc.invalidateQueries({ queryKey: rollHeaderKey(rollId) });
-      }, 600);
+      }, ROLL_REFRESH_DEBOUNCE_MS);
     };
-    channelCounter += 1;
-    const channel = supabase
-      .channel(`roll-photos:${rollId}:${channelCounter}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'photos', filter: `roll_id=eq.${rollId}` },
-        refresh,
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'photos', filter: `roll_id=eq.${rollId}` },
-        refresh,
-      )
-      .subscribe();
+    const topic = `roll:${rollId}`;
+    void (async () => {
+      // supabase.channel(topic) hands back an existing channel of the same topic, and callbacks cannot be added
+      // to a subscribed one: wait for a leftover (previous screen instance) to be torn down first.
+      const stale = supabase.getChannels().find((c) => c.topic === `realtime:${topic}`);
+      if (stale) await supabase.removeChannel(stale);
+      if (cancelled) return;
+      channel = supabase
+        .channel(topic)
+        .on('broadcast', { event: 'photos_changed' }, refresh)
+        .subscribe();
+    })();
     return () => {
+      cancelled = true;
       if (timer) clearTimeout(timer);
-      void supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [qc, rollId]);
 }
