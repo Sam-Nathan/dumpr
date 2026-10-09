@@ -4,6 +4,7 @@ import { UploadError } from './errors.ts';
 import type { PartRange } from './parts.ts';
 import {
   emptyProgress,
+  HIDDEN_PHOTO_ID,
   runUpload,
   type PreparedUpload,
   type UploadProgressState,
@@ -32,9 +33,10 @@ const job = (patch: Partial<PreparedUpload> = {}): PreparedUpload => ({
   ...patch,
 });
 
-const put = (name: string): PresignedPut => ({
+const put = (name: string, content_length = 1000): PresignedPut => ({
   url: `https://r2/${name}`,
   headers: { 'content-type': 'image/jpeg' },
+  content_length,
 });
 
 interface Calls {
@@ -95,14 +97,19 @@ const uploadRes = (
 ): UploadInitResponse => ({
   status: 'upload',
   photo_id: 'p1',
-  original: { mode: 'put', ...put('o') },
-  display: put('d'),
-  thumb: put('t'),
+  original: { mode: 'put', ...put('o', 1000) },
+  display: put('d', 100),
+  thumb: put('t', 10),
   expires_at: new Date(0).toISOString(),
   ...patch,
 });
 
-const multipartRes = (uploadId: string, partSize = 8 * MiB, count = 3): UploadInitResponse =>
+const multipartRes = (
+  uploadId: string,
+  partSize = 8 * MiB,
+  count = 3,
+  bytes = 20 * MiB,
+): UploadInitResponse =>
   uploadRes({
     original: {
       mode: 'multipart',
@@ -111,6 +118,7 @@ const multipartRes = (uploadId: string, partSize = 8 * MiB, count = 3): UploadIn
       parts: Array.from({ length: count }, (_, i) => ({
         n: i + 1,
         url: `https://r2/part${i + 1}`,
+        content_length: Math.min(partSize, bytes - i * partSize),
       })),
     },
   });
@@ -154,6 +162,33 @@ describe('runUpload', () => {
     );
     expect(calls.puts).toEqual(['original']);
     expect(calls.complete[0]).toEqual({ photo_id: 'p1' });
+  });
+
+  it('a duplicate whose photo the server does not disclose still ends the item', async () => {
+    const { t, calls } = fakeTransport({ initResponses: [{ status: 'duplicate' }] });
+    expect(await runUpload(job(), emptyProgress(), t)).toEqual({
+      kind: 'duplicate',
+      existingPhotoId: HIDDEN_PHOTO_ID,
+    });
+    expect(calls.puts).toEqual([]);
+  });
+
+  it('refuses to send a body whose length differs from the signed content-length', async () => {
+    const bad = uploadRes({ thumb: put('t', 11) });
+    const a = fakeTransport({ initResponses: [bad] });
+    await expect(runUpload(job(), emptyProgress(), a.t)).rejects.toMatchObject({ code: 'internal' });
+    expect(a.calls.puts).toEqual([]);
+    const b = fakeTransport({
+      initResponses: [uploadRes({ original: { mode: 'put', ...put('o', 999) } })],
+    });
+    await expect(runUpload(job(), emptyProgress(), b.t)).rejects.toMatchObject({ code: 'internal' });
+    expect(b.calls.puts).toEqual(['thumb', 'display']);
+    const c = multipartRes('U1', 8 * MiB, 3, 21 * MiB); // last part signed for 5 MiB, range is 4 MiB
+    const d = fakeTransport({ initResponses: [c] });
+    await expect(runUpload(job({ bytes: 20 * MiB }), emptyProgress(), d.t)).rejects.toMatchObject({
+      code: 'internal',
+    });
+    expect(d.calls.parts).toEqual([1, 2]);
   });
 
   it('returns duplicate, or done when the duplicate is this photo', async () => {

@@ -21,18 +21,27 @@ export interface UploadInitRequest {
   thumb_bytes: number;
 }
 
-/** A presigned single PUT. The client must send exactly `headers` (Content-Type is signed). */
+/**
+ * A presigned single PUT. The URL signs `content-type` and `content-length`: the client must send exactly
+ * `headers` and a body of exactly `content_length` bytes (browsers / native uploaders set the Content-Length
+ * header themselves from the body, so it is not part of `headers`). Anything else is rejected by R2.
+ */
 export interface PresignedPut {
   url: string;
   headers: Record<string, string>;
+  /** Signed body length in bytes. */
+  content_length: number;
 }
 
 export interface MultipartTarget {
   mode: 'multipart';
   upload_id: string;
   part_size: number;
-  /** Every part of the upload, 1-based, with a fresh URL. Already-uploaded parts may be skipped. */
-  parts: { n: number; url: string }[];
+  /**
+   * Every part of the upload, 1-based, with a fresh URL. Already-uploaded parts may be skipped.
+   * `content_length` is the signed body length of that part (`part_size`, the last part is shorter).
+   */
+  parts: { n: number; url: string; content_length: number }[];
 }
 
 export type OriginalTarget = ({ mode: 'put' } & PresignedPut) | MultipartTarget;
@@ -42,8 +51,9 @@ export interface UploadInitDuplicate {
   /**
    * The photo already in the Roll with the same content hash. When it equals the request's
    * `photo_id`, the caller's own photo is already complete (idempotent re-init after a crash).
+   * Omitted when the caller is not allowed to see that photo (someone else's only-me / in-review photo).
    */
-  existing_photo_id: string;
+  existing_photo_id?: string;
 }
 
 export interface UploadInitUpload {
@@ -132,4 +142,7 @@ export interface UploadContext {
   max_upload_parts: number;
   /** Optional; when absent the server reads app_settings.limits.guest_max_photos_per_roll. */
   guest_max_photos_per_roll?: number | null;
+  /** The caller's unfinished (status 'pending') uploads and their bytes; not yet in storage_used_bytes. */
+  pending_count?: number;
+  pending_bytes?: number;
 }

@@ -7,6 +7,7 @@ import {
   DEFAULT_MAX_UPLOAD_PARTS,
   MAX_CAPTION_CHARS,
   MAX_DISPLAY_BYTES,
+  MAX_PENDING_UPLOADS,
   MAX_THUMB_BYTES,
   S3_MAX_PARTS,
 } from './constants.ts';
@@ -175,7 +176,7 @@ export function partsAreComplete(parts: ReadonlyArray<{ n: number }>, count: num
 }
 
 export type UploadAccessDecision =
-  { ok: true; reviewFirst: boolean } | { ok: false; status: 403 | 404 | 413; code: string };
+  { ok: true; reviewFirst: boolean } | { ok: false; status: 403 | 404 | 413 | 429; code: string };
 
 /**
  * Upload permission from `svc_upload_context` (null = RPC returned nothing). Pure so both
@@ -197,8 +198,12 @@ export function decideUploadAccess(
     if (ctx.max_photo_bytes > 0 && opts.bytes > ctx.max_photo_bytes) {
       return { ok: false, status: 413, code: 'payload_too_large' };
     }
+    // Unfinished uploads hold R2 space and presigned URLs: cap them and count their bytes toward the quota.
+    if ((ctx.pending_count ?? 0) >= MAX_PENDING_UPLOADS) {
+      return { ok: false, status: 429, code: 'rate_limited' };
+    }
     if (ctx.storage_limit_bytes !== null && ctx.storage_limit_bytes !== undefined) {
-      if (ctx.storage_used_bytes + opts.bytes > ctx.storage_limit_bytes) {
+      if (ctx.storage_used_bytes + (ctx.pending_bytes ?? 0) + opts.bytes > ctx.storage_limit_bytes) {
         return { ok: false, status: 413, code: 'storage_full' };
       }
     }
@@ -239,5 +244,7 @@ export function parseUploadContext(raw: unknown): UploadContext | null {
       r.guest_max_photos_per_roll === null || r.guest_max_photos_per_roll === undefined
         ? null
         : num(r.guest_max_photos_per_roll, 0),
+    pending_count: num(r.pending_count, 0),
+    pending_bytes: num(r.pending_bytes, 0),
   };
 }

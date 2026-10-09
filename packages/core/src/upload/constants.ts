@@ -30,6 +30,9 @@ export const RETRY_MAX_MS = 15 * 60_000;
 export const RETRY_JITTER = 0.2;
 export const MAX_AUTO_ATTEMPTS = 8;
 
+/** Unfinished uploads one user may hold at once; upload-init answers 429 rate_limited beyond that. */
+export const MAX_PENDING_UPLOADS = 500;
+
 /** Items uploaded at the same time. */
 export const UPLOAD_CONCURRENCY = 3;
 

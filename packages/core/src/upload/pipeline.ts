@@ -94,6 +94,9 @@ export type RunUploadResult =
   | { kind: 'done'; status: 'ready' | 'review'; response: UploadCompleteResponse | null }
   | { kind: 'duplicate'; existingPhotoId: string };
 
+/** `existingPhotoId` of a duplicate whose photo the server did not disclose (someone else's private photo). */
+export const HIDDEN_PHOTO_ID = 'hidden';
+
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export function toInitRequest(job: PreparedUpload): UploadInitRequest {
@@ -115,6 +118,19 @@ export function toInitRequest(job: PreparedUpload): UploadInitRequest {
 
 function variantSize(job: PreparedUpload, v: UploadVariant): number {
   return v === 'thumb' ? job.thumbBytes : v === 'display' ? job.displayBytes : job.bytes;
+}
+
+/**
+ * The server signs the exact body length of every PUT (content-length is part of the presigned URL). A
+ * signed length that differs from what we are about to send could only ever end in a 403 from R2, so stop
+ * early with a retryable error (the next init re-signs). Servers that predate content_length are tolerated.
+ */
+function assertSignedLength(signed: number | undefined, actual: number): void {
+  if (typeof signed === 'number' && signed !== actual) {
+    throw new UploadError('internal', {
+      message: `signed content-length ${signed} does not match the ${actual} bytes to send`,
+    });
+  }
 }
 
 function parseIncomplete(details: unknown): UploadIncompleteDetails {
@@ -167,7 +183,7 @@ export async function runUpload(
     if (res.status === 'duplicate') {
       if (res.existing_photo_id === job.photoId)
         return { kind: 'done', status: 'ready', response: null };
-      return { kind: 'duplicate', existingPhotoId: res.existing_photo_id };
+      return { kind: 'duplicate', existingPhotoId: res.existing_photo_id ?? HIDDEN_PHOTO_ID };
     }
     checkAbort(hooks.signal);
 
@@ -202,6 +218,7 @@ export async function runUpload(
     for (const v of ['thumb', 'display'] as const) {
       if (p.variantsDone.includes(v)) continue;
       checkAbort(hooks.signal);
+      assertSignedLength(res[v].content_length, variantSize(job, v));
       await transport.putVariant(v, res[v], report);
       await save({ ...p, variantsDone: [...p.variantsDone, v] });
       report(0);
@@ -210,6 +227,7 @@ export async function runUpload(
     if (original.mode === 'put') {
       if (!p.variantsDone.includes('original')) {
         checkAbort(hooks.signal);
+        assertSignedLength(original.content_length, job.bytes);
         const { etag } = await transport.putVariant('original', original, report);
         const want = md5HexFromContentHash(job.contentHash);
         // R2's single-PUT ETag is the MD5 of the bytes: a mismatch means they changed in transit.
@@ -219,11 +237,13 @@ export async function runUpload(
         report(0);
       }
     } else {
-      const urls = new Map(original.parts.map((x) => [x.n, x.url]));
+      const targets = new Map(original.parts.map((x) => [x.n, x]));
       for (const range of ranges) {
         if (p.multipart!.partsDone.some((x) => x.n === range.n)) continue;
-        const url = urls.get(range.n);
+        const target = targets.get(range.n);
+        const url = target?.url;
         if (!url) throw new UploadError('internal', { message: `no url for part ${range.n}` });
+        assertSignedLength(target.content_length, range.end - range.start);
         let etag: string | null = null;
         for (let t = 0; ; t++) {
           checkAbort(hooks.signal);
