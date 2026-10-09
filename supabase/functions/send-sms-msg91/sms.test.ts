@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert@1';
-import { flowBody, hookError, maskPhone, mobilesFor, msg91Accepted, msg91Config, parseHookPayload } from './msg91.ts';
+import { destinationAllowed, flowBody, hookError, maskPhone, mobilesFor, msg91Accepted, msg91Config, parseHookPayload } from './msg91.ts';
 import { sign, verifyWebhook } from './webhook.ts';
 
 // Known vector from the Standard Webhooks reference docs.
@@ -62,4 +62,27 @@ Deno.test('hook payload, masking and response classification', () => {
   assertEquals(msg91Accepted(401, { type: 'error' }), false);
   assertEquals(msg91Accepted(200, null), true);
   assertEquals(hookError(500, 'sms_failed'), { error: { http_code: 500, message: 'sms_failed' } });
+});
+
+Deno.test('F11: OTPs go to Indian mobiles only unless SMS_ALLOWED_PREFIXES widens it', () => {
+  for (const ok of ['919876543210', '916000000000', '917999999999']) assertEquals(destinationAllowed(ok), true, ok);
+  for (const bad of [
+    '911234567890', // 91 but landline-style first digit
+    '91987654321', // too short
+    '9198765432100', // too long
+    '447911123456', // UK
+    '12025550123', // US
+    '19005551234', // premium-style
+    '9792123456789',
+    '', 'abc', '+919876543210', // the hook strips "+" before this check
+  ]) {
+    assertEquals(destinationAllowed(bad), false, bad);
+  }
+  assertEquals(destinationAllowed('447911123456', ''), false);
+  assertEquals(destinationAllowed('447911123456', '44'), true);
+  assertEquals(destinationAllowed('447911123456', '91, +44'), true);
+  assertEquals(destinationAllowed('12025550123', '91,44'), false);
+  assertEquals(destinationAllowed('911234567890', '91'), true); // an explicit prefix is the operator's call
+  assertEquals(destinationAllowed('447911123456', 'garbage,,'), false); // unusable override falls back to the default
+  assertEquals(destinationAllowed('919876543210', 'garbage'), true);
 });

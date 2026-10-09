@@ -166,6 +166,19 @@ select is((select count(*) from public.media_purge_queue where key like 'a/' || 
   'F1: nor another user''s avatar');
 select is((select count(*) from public.media_purge_queue where key = 'a/' || tests.u('kim') || '/22222222-2222-2222-2222-222222222222.jpg'), 1::bigint,
   'F1: the user''s own avatar is queued');
+-- the public preview never carries a foreign key either (host = link creator alice, facepile = crew members)
+update public.profiles set avatar_key = 'o/' || tests.crew() || '/' || tests.roll(2) || '/' || tests.photo(7) where id = tests.u('alice');
+update public.profiles set avatar_key = 'a/' || tests.u('dan') || '/44444444-4444-4444-4444-444444444444.jpg' where id = tests.u('cara');
+update public.profiles set avatar_key = 'a/' || tests.u('bob') || '/55555555-5555-5555-5555-555555555555.jpg' where id = tests.u('bob');
+select tests.as_user('alice');
+insert into t_codes values ('f1_prev', public.create_invite(tests.crew()) ->> 'code');
+select tests.as_anon();
+select is(public.invite_preview((select code from t_codes where name = 'f1_prev')) #>> '{host,avatar_key}', null,
+  'F1: invite_preview drops a host avatar_key that is not under the host''s own prefix');
+select is((select count(*) from jsonb_array_elements(public.invite_preview((select code from t_codes where name = 'f1_prev')) -> 'facepile') f
+           where f ->> 'avatar_key' is not null), 1::bigint,
+  'F1: and facepile keys likewise (only bob''s own avatar survives)');
+select tests.as_super();
 delete from auth.users where id in (tests.u('gus'), tests.u('ivan'));
 select is((select count(*) from public.media_purge_queue where key = 'o/' || tests.crew() || '/' || tests.roll(1) || '/' || tests.photo(1)), 0::bigint,
   'F1: deleting the account does not queue the foreign original (trigger)');

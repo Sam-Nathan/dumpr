@@ -4,7 +4,9 @@ import {
   canReuseMultipart,
   classifyDuplicate,
   classifyExisting,
+  duplicateAnswer,
   type ExistingPhoto,
+  partLengths,
   planOriginal,
   STALE_PENDING_MS,
   uniqueViolation,
@@ -101,4 +103,21 @@ Deno.test('uniqueViolation', () => {
     uniqueViolation({ code: '23505', message: 'duplicate key value violates unique constraint "photos_roll_content_hash_key"' }),
     'hash',
   );
+});
+
+Deno.test('partLengths: signed body length of every part sums to the file size', () => {
+  assertEquals(partLengths(20 * MiB, 8 * MiB), [8 * MiB, 8 * MiB, 4 * MiB]);
+  assertEquals(partLengths(16 * MiB + 1, 8 * MiB), [8 * MiB, 8 * MiB, 1]);
+  assertEquals(partLengths(24 * MiB, 8 * MiB), [8 * MiB, 8 * MiB, 8 * MiB]);
+  const plan = planOriginal(20 * MiB, 100, null);
+  if (plan.mode !== 'multipart') throw new Error('expected multipart');
+  const lens = partLengths(20 * MiB, plan.partSize);
+  assertEquals(lens.length, plan.count);
+  assertEquals(lens.reduce((a, b) => a + b, 0), 20 * MiB);
+});
+
+Deno.test("duplicate answers only disclose a photo id the caller can see (someone else's only-me photo stays hidden)", () => {
+  assertEquals(duplicateAnswer('p9', true), { status: 'duplicate', existing_photo_id: 'p9' });
+  assertEquals(duplicateAnswer('p9', false), { status: 'duplicate' });
+  assertEquals('existing_photo_id' in duplicateAnswer('p9', false), false);
 });

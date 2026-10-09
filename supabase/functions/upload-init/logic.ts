@@ -2,7 +2,9 @@
 import {
   PART_URL_TTL_SECONDS,
   PUT_URL_TTL_SECONDS,
+  partRanges,
   planParts,
+  type UploadInitDuplicate,
   type UploadInitRequest,
 } from '../../../packages/core/src/upload/index.ts';
 
@@ -105,6 +107,23 @@ export function canReuseMultipart(existing: MediaUploadRow | null, plan: Origina
     existing.part_size === plan.partSize &&
     existing.parts === plan.count
   );
+}
+
+/**
+ * Signed body length of every part of a multipart upload: `partSize` each, the last one shorter. R2
+ * rejects a part PUT whose body length differs, so a client cannot push more than the plan through a URL.
+ */
+export function partLengths(bytes: number, partSize: number): number[] {
+  return partRanges(bytes, partSize).map((r) => r.end - r.start);
+}
+
+/**
+ * `duplicate` answer for bytes that are already in the Roll. The id of the existing photo is only handed out
+ * when the caller can see that photo themselves (RLS), so a duplicate probe cannot confirm that someone else's
+ * only-me / in-review photo exists or reveal its id.
+ */
+export function duplicateAnswer(existingId: string, callerCanSee: boolean): UploadInitDuplicate {
+  return callerCanSee ? { status: 'duplicate', existing_photo_id: existingId } : { status: 'duplicate' };
 }
 
 /** URLs expire at the earliest TTL handed out. */

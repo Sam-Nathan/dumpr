@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from 'jsr:@std/assert@1';
 import { HttpError } from '../_shared/http.ts';
-import { buildExport, crewsFromMembership, lastHostError, parseAccountRequest, parseSummary, purgeKeys } from './logic.ts';
+import { buildExport, crewsFromMembership, lastHostError, ownAvatarKey, parseAccountRequest, parseSummary, purgeKeys } from './logic.ts';
 
 Deno.test('request parsing requires the DELETE confirmation', () => {
   assertEquals(parseAccountRequest({ action: 'export' }), { action: 'export' });
@@ -46,4 +46,16 @@ Deno.test('export manifest and crew flattening', () => {
   assertEquals(m.exported_at, '2026-10-09T00:00:00.000Z');
   assertEquals(m.truncated, true);
   assertEquals(m.url_expires_in_hours, 24);
+});
+
+Deno.test('F1: only the own avatar key is queued for purge (never an original or another user\'s file)', () => {
+  const U = '11111111-1111-4111-8111-111111111111';
+  const O = '22222222-2222-4222-8222-222222222222';
+  const F = '33333333-3333-4333-8333-333333333333';
+  assertEquals(ownAvatarKey(U, `a/${U}/${F}.jpg`), `a/${U}/${F}.jpg`);
+  assertEquals(ownAvatarKey(U, `a/${O}/${F}.jpg`), null);
+  assertEquals(ownAvatarKey(U, 'o/c001/b2/e3'), null);
+  assertEquals(ownAvatarKey(U, `d/c/r/${F}.jpg`), null);
+  assertEquals(ownAvatarKey(U, null), null);
+  assertEquals(purgeKeys([], ownAvatarKey(U, 'o/c001/b2/e3')), []);
 });

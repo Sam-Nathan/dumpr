@@ -13,6 +13,7 @@ import {
   EXPORT_TTL_S,
   type ExportPhoto,
   lastHostError,
+  ownAvatarKey,
   parseAccountRequest,
   parseSummary,
   purgeKeys,
@@ -100,7 +101,7 @@ async function deleteAccount(admin: SupabaseClient, userId: string, req: Request
 
   // Queue R2 objects first: the photo rows (and their keys) cascade away with the auth user.
   const { data: prof } = await admin.from('profiles').select('avatar_key').eq('id', userId).maybeSingle();
-  const avatar = (prof as { avatar_key?: string | null } | null)?.avatar_key ?? null;
+  const avatar = ownAvatarKey(userId, (prof as { avatar_key?: string | null } | null)?.avatar_key);
   let queued = 0;
   let after: string | null = null;
   for (;;) {

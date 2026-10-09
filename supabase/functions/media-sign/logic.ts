@@ -1,5 +1,6 @@
 // Pure helpers for media-sign (no I/O): request parsing, key selection, download naming, access rule.
 import { HttpError, isUuid } from '../_shared/http.ts';
+import { avatarKeyOwner } from '../_shared/r2.ts';
 
 export const SIGN_TTL_S = 6 * 60 * 60; // 6 h
 export const MAX_ITEMS = 300;
@@ -15,10 +16,25 @@ export interface SignItem {
 
 export type SignRequest = { kind: 'items'; items: SignItem[] } | { kind: 'avatars'; keys: string[] };
 
-const AVATAR_KEY_RE = /^a\/[A-Za-z0-9_\-./]{1,180}$/;
-
+/** Shape of an avatar key: a/<user id>/<uuid>.jpg (nothing else is ever signed through the avatar path). */
 export function isAvatarKey(k: unknown): k is string {
-  return typeof k === 'string' && AVATAR_KEY_RE.test(k) && !k.includes('..') && !k.endsWith('/');
+  return avatarKeyOwner(k) !== null;
+}
+
+/**
+ * Avatar keys the caller may get a URL for. `rows` are the profiles the caller can read (RLS): a key is
+ * signed only when it sits under that very profile's own prefix, because profiles.avatar_key is
+ * client-writable (it must never lead to an original, a display / thumb, or another user's files).
+ */
+export function signableAvatarKeys(rows: ReadonlyArray<{ id: string; avatar_key: string | null }>, requested: readonly string[]): Set<string> {
+  const want = new Set(requested);
+  const out = new Set<string>();
+  for (const r of rows) {
+    const k = r.avatar_key;
+    if (!k || !want.has(k) || !isAvatarKey(k)) continue;
+    if (k.startsWith(`a/${String(r.id).toLowerCase()}/`)) out.add(k);
+  }
+  return out;
 }
 
 export const itemKey = (photoId: string, variant: Variant) => `${photoId}:${variant}`;

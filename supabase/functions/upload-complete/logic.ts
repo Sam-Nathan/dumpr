@@ -20,17 +20,41 @@ export interface VerifyInput {
   /** Original went up as multipart: its ETag is not an MD5, only the size is checked. */
   multipart: boolean;
   heads: Record<UploadVariant, HeadResult | null>;
+  /** MIME type the original was declared (and its URL signed) with; its stored Content-Type must match. */
+  mime?: string | null;
+  /**
+   * Sizes the derived variants' URLs were signed for (media_uploads.display_bytes / thumb_bytes). The stored
+   * object must be exactly that long; null / absent (uploads started before sizes were recorded) only
+   * enforces the upper bounds.
+   */
+  displayBytes?: number | null;
+  thumbBytes?: number | null;
 }
+
+/** 'Image/JPEG; charset=x' -> 'image/jpeg' */
+export function normalizeMime(v: string | null | undefined): string {
+  return (v ?? '').split(';')[0].trim().toLowerCase();
+}
+
+const typeOk = (head: HeadResult, want: string | null | undefined) =>
+  want === undefined || want === null || normalizeMime(head.contentType) === normalizeMime(want);
+
+const sizeOk = (size: number, max: number, exact: number | null | undefined) =>
+  size > 0 && size <= max && (exact === null || exact === undefined || size === exact);
 
 /** Variants that are missing or fail verification, in upload order. */
 export function verifyObjects(v: VerifyInput): UploadVariant[] {
   const missing: UploadVariant[] = [];
   const thumb = v.heads.thumb;
-  if (!thumb || thumb.size <= 0 || thumb.size > MAX_THUMB_BYTES) missing.push('thumb');
+  if (!thumb || !sizeOk(thumb.size, MAX_THUMB_BYTES, v.thumbBytes) || !typeOk(thumb, 'image/jpeg')) {
+    missing.push('thumb');
+  }
   const display = v.heads.display;
-  if (!display || display.size <= 0 || display.size > MAX_DISPLAY_BYTES) missing.push('display');
+  if (!display || !sizeOk(display.size, MAX_DISPLAY_BYTES, v.displayBytes) || !typeOk(display, 'image/jpeg')) {
+    missing.push('display');
+  }
   const o = v.heads.original;
-  if (!o || o.size !== v.bytes) {
+  if (!o || o.size !== v.bytes || !typeOk(o, v.mime)) {
     missing.push('original');
   } else if (!v.multipart) {
     const want = md5HexFromContentHash(v.contentHash);

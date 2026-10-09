@@ -81,15 +81,28 @@ export function hasActiveUploads(): boolean {
 
 // ------------------------------------------------------------------ browser transport
 
+/**
+ * PUT a blob to a presigned URL. The URL signs Content-Type and the exact body length: send exactly the
+ * `headers` upload-init returned and a body of the signed `content-length` (the browser derives the
+ * Content-Length header from the Blob; it cannot be set by script).
+ */
 function xhrPut(
   url: string,
   body: Blob,
   headers: Record<string, string>,
+  signedLength: number | undefined,
   onProgress: (sent: number) => void,
   signal: AbortSignal,
 ): Promise<{ etag: string | null }> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) return reject(new UploadError('cancelled'));
+    if (typeof signedLength === 'number' && body.size !== signedLength) {
+      return reject(
+        new UploadError('file_missing', {
+          message: `file is ${body.size} bytes, the upload was signed for ${signedLength}`,
+        }),
+      );
+    }
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', url);
     for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
@@ -154,10 +167,17 @@ function browserTransport(opts: WebUploaderOptions) {
     putVariant: (v, target: PresignedPut, onProgress) => {
       const blob =
         v === 'thumb' ? item.prepared.thumb : v === 'display' ? item.prepared.display : item.file;
-      return xhrPut(target.url, blob, target.headers, onProgress, signal);
+      return xhrPut(target.url, blob, target.headers, target.content_length, onProgress, signal);
     },
     putPart: (part: PartRange, url, onProgress) =>
-      xhrPut(url, item.file.slice(part.start, part.end), {}, onProgress, signal),
+      xhrPut(
+        url,
+        item.file.slice(part.start, part.end),
+        {},
+        part.end - part.start,
+        onProgress,
+        signal,
+      ),
   });
 }
 

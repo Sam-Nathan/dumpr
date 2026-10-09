@@ -4,10 +4,15 @@ import { AwsClient } from 'npm:aws4fetch@1.0.20';
 import type { R2Config } from './env.ts';
 
 export interface R2 {
-  presignPut(key: string, opts: { contentType: string; expiresIn?: number }): Promise<string>;
+  /**
+   * Presigned single PUT. `content-type` and `content-length` are part of the signature (X-Amz-SignedHeaders),
+   * so R2 rejects a request that sends another type or a body of another length.
+   */
+  presignPut(key: string, opts: { contentType: string; contentLength: number; expiresIn?: number }): Promise<string>;
   presignGet(key: string, opts?: { expiresIn?: number; downloadName?: string }): Promise<string>;
   createMultipart(key: string, contentType: string): Promise<string>;
-  presignPart(key: string, uploadId: string, partNumber: number, expiresIn?: number): Promise<string>;
+  /** Presigned multipart part; `content-length` is signed, so a part is exactly `contentLength` bytes. */
+  presignPart(key: string, uploadId: string, partNumber: number, contentLength: number, expiresIn?: number): Promise<string>;
   completeMultipart(key: string, uploadId: string, parts: { n: number; etag: string }[]): Promise<void>;
   abortMultipart(key: string, uploadId: string): Promise<void>;
   /** null when the object does not exist. */
@@ -21,6 +26,10 @@ function encodeKey(key: string): string {
   return key.split('/').map(encodeURIComponent).join('/');
 }
 
+function assertLength(n: number): void {
+  if (!Number.isSafeInteger(n) || n <= 0) throw new RangeError('contentLength must be a positive integer');
+}
+
 export function createR2(cfg: R2Config): R2 {
   const aws = new AwsClient({
     accessKeyId: cfg.accessKeyId,
@@ -30,9 +39,15 @@ export function createR2(cfg: R2Config): R2 {
   });
   const objectUrl = (key: string) => new URL(`${cfg.endpoint}/${cfg.bucket}/${encodeKey(key)}`);
 
+  // aws4fetch leaves content-type / content-length out of X-Amz-SignedHeaders unless allHeaders is on; with
+  // headers given we sign exactly those (plus host), otherwise only host (GET).
   async function presign(method: string, url: URL, expiresIn: number, headers?: Record<string, string>) {
     url.searchParams.set('X-Amz-Expires', String(expiresIn));
-    const signed = await aws.sign(url.toString(), { method, headers, aws: { signQuery: true, allHeaders: false } });
+    const signed = await aws.sign(url.toString(), {
+      method,
+      headers,
+      aws: { signQuery: true, allHeaders: headers !== undefined },
+    });
     return signed.url;
   }
 
@@ -46,9 +61,13 @@ export function createR2(cfg: R2Config): R2 {
   }
 
   return {
-    presignPut(key, { contentType, expiresIn = DEFAULT_TTL }) {
-      // Content-Type is signed: the client must send exactly this header.
-      return presign('PUT', objectUrl(key), expiresIn, { 'content-type': contentType });
+    presignPut(key, { contentType, contentLength, expiresIn = DEFAULT_TTL }) {
+      assertLength(contentLength);
+      // Content-Type and Content-Length are signed: the client must send exactly this type and this many bytes.
+      return presign('PUT', objectUrl(key), expiresIn, {
+        'content-type': contentType,
+        'content-length': String(contentLength),
+      });
     },
     presignGet(key, { expiresIn = DEFAULT_TTL, downloadName } = {}) {
       const url = objectUrl(key);
@@ -66,11 +85,12 @@ export function createR2(cfg: R2Config): R2 {
       if (!m) throw new Error('r2 createMultipart: no UploadId');
       return m[1];
     },
-    presignPart(key, uploadId, partNumber, expiresIn = DEFAULT_TTL * 6) {
+    presignPart(key, uploadId, partNumber, contentLength, expiresIn = DEFAULT_TTL * 6) {
+      assertLength(contentLength);
       const url = objectUrl(key);
       url.searchParams.set('partNumber', String(partNumber));
       url.searchParams.set('uploadId', uploadId);
-      return presign('PUT', url, expiresIn);
+      return presign('PUT', url, expiresIn, { 'content-length': String(contentLength) });
     },
     async completeMultipart(key, uploadId, parts) {
       const url = objectUrl(key);
@@ -128,3 +148,22 @@ export const mediaKeys = {
   thumb: (crewId: string, rollId: string, photoId: string) => `t/${crewId}/${rollId}/${photoId}.jpg`,
   avatar: (userId: string, id: string) => `a/${userId}/${id}.jpg`,
 };
+
+const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+const AVATAR_KEY_RE = new RegExp(`^a/(${UUID})/${UUID}\\.jpg$`, 'i');
+
+/** The user an avatar key belongs to (`a/<user id>/<uuid>.jpg`), lowercase; null for any other key shape. */
+export function avatarKeyOwner(key: unknown): string | null {
+  if (typeof key !== 'string') return null;
+  const m = AVATAR_KEY_RE.exec(key);
+  return m ? m[1].toLowerCase() : null;
+}
+
+/**
+ * True when `key` is exactly an avatar key of `userId`. profiles.avatar_key is client-writable, so every
+ * place that signs or purges an avatar key must check this (never trust the column on its own).
+ */
+export function isAvatarKeyOf(userId: string, key: unknown): key is string {
+  const owner = avatarKeyOwner(key);
+  return owner !== null && owner === String(userId).toLowerCase();
+}

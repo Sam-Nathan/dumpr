@@ -203,7 +203,10 @@ export function decideUploadAccess(
       return { ok: false, status: 429, code: 'rate_limited' };
     }
     if (ctx.storage_limit_bytes !== null && ctx.storage_limit_bytes !== undefined) {
-      if (ctx.storage_used_bytes + (ctx.pending_bytes ?? 0) + opts.bytes > ctx.storage_limit_bytes) {
+      if (
+        ctx.storage_used_bytes + (ctx.pending_bytes ?? 0) + opts.bytes >
+        ctx.storage_limit_bytes
+      ) {
         return { ok: false, status: 413, code: 'storage_full' };
       }
     }

@@ -29,6 +29,16 @@ interface MediaUpload {
   multipart_upload_id: string | null;
   part_size: number | null;
   parts: number | null;
+  display_bytes: number | null;
+  thumb_bytes: number | null;
+}
+
+/** Forget the multipart upload but keep the recorded variant sizes (the next init signs and records them again). */
+async function forgetMultipart(admin: SupabaseClient, photoId: string) {
+  await admin
+    .from('media_uploads')
+    .update({ multipart_upload_id: null, part_size: null, parts: null })
+    .eq('photo_id', photoId);
 }
 
 function incomplete(missing: UploadVariant[], extra: { reset_parts?: boolean; restart_multipart?: boolean } = {}): never {
@@ -37,7 +47,7 @@ function incomplete(missing: UploadVariant[], extra: { reset_parts?: boolean; re
 
 async function dropMultipart(admin: SupabaseClient, r2: R2, photo: PhotoRow, uploadId: string) {
   await r2.abortMultipart(photo.original_key, uploadId).catch(() => {});
-  await admin.from('media_uploads').delete().eq('photo_id', photo.id);
+  await forgetMultipart(admin, photo.id);
 }
 
 Deno.serve(
@@ -75,7 +85,7 @@ Deno.serve(
 
     const { data: muData, error: muErr } = await admin
       .from('media_uploads')
-      .select('multipart_upload_id, part_size, parts')
+      .select('multipart_upload_id, part_size, parts, display_bytes, thumb_bytes')
       .eq('photo_id', photo.id)
       .maybeSingle();
     if (muErr) throw muErr;
@@ -116,11 +126,14 @@ Deno.serve(
       contentHash: photo.content_hash,
       multipart: uploadId !== null,
       heads: { original, display, thumb },
+      mime: photo.mime,
+      displayBytes: mu?.display_bytes ?? null,
+      thumbBytes: mu?.thumb_bytes ?? null,
     });
     if (missing.length) {
       if (uploadId && missing.includes('original')) {
         // A completed multipart object with the wrong size cannot be fixed part by part.
-        await admin.from('media_uploads').delete().eq('photo_id', photo.id);
+        await forgetMultipart(admin, photo.id);
         incomplete(missing, { restart_multipart: true });
       }
       incomplete(missing);

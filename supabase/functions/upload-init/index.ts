@@ -20,8 +20,10 @@ import {
   classifyDuplicate,
   classifyExisting,
   type DuplicateCandidate,
+  duplicateAnswer,
   type ExistingPhoto,
   type MediaUploadRow,
+  partLengths,
   planOriginal,
   uniqueViolation,
   urlsExpireAt,
@@ -54,6 +56,7 @@ function deny(d: { status: number; code: string }): never {
     payload_too_large: 'This photo is too big to upload',
     storage_full: 'Your storage is full',
     guest_limit_reached: "You've added the most photos a guest can",
+    rate_limited: 'Too many uploads in progress. Try again in a moment',
   };
   throw new HttpError(d.status, d.code, messages[d.code] ?? d.code);
 }
@@ -105,12 +108,27 @@ async function chapterInRoll(admin: SupabaseClient, chapterId: string | null | u
   return data ? chapterId : null;
 }
 
+/** Can the caller read this photo through RLS? (the uploader always can; others only what policy allows) */
+async function callerCanSee(userClient: SupabaseClient, photoId: string): Promise<boolean> {
+  const { data, error } = await userClient.from('photos').select('id').eq('id', photoId).maybeSingle();
+  if (error) return false;
+  return !!data;
+}
+
 async function issueUrls(
   admin: SupabaseClient,
   r2: R2,
   photo: ExistingPhoto,
   maxParts: number,
+  sizes: { display: number; thumb: number },
 ): Promise<UploadInitResponse> {
+  // Remember the sizes the derived variants were signed for: upload-complete verifies them exactly.
+  // (Only these two columns are written, a stored multipart upload on the same row is left alone.)
+  const { error: szErr } = await admin
+    .from('media_uploads')
+    .upsert({ photo_id: photo.id, display_bytes: sizes.display, thumb_bytes: sizes.thumb }, { onConflict: 'photo_id' });
+  if (szErr) throw szErr;
+
   const { data: muData, error: muErr } = await admin
     .from('media_uploads')
     .select('multipart_upload_id, part_size, parts')
@@ -123,8 +141,8 @@ async function issueUrls(
   const { expiresAt, multipartExpiresAt } = urlsExpireAt(now, plan.mode);
 
   const [display, thumb] = await Promise.all([
-    r2.presignPut(photo.display_key, { contentType: 'image/jpeg' }),
-    r2.presignPut(photo.thumb_key, { contentType: 'image/jpeg' }),
+    r2.presignPut(photo.display_key, { contentType: 'image/jpeg', contentLength: sizes.display }),
+    r2.presignPut(photo.thumb_key, { contentType: 'image/jpeg', contentLength: sizes.thumb }),
   ]);
   const jpeg = { 'content-type': 'image/jpeg' };
 
@@ -132,8 +150,9 @@ async function issueUrls(
   if (plan.mode === 'put') {
     original = {
       mode: 'put',
-      url: await r2.presignPut(photo.original_key, { contentType: photo.mime }),
+      url: await r2.presignPut(photo.original_key, { contentType: photo.mime, contentLength: photo.bytes }),
       headers: { 'content-type': photo.mime },
+      content_length: photo.bytes,
     };
   } else {
     let uploadId: string;
@@ -157,10 +176,12 @@ async function issueUrls(
         throw error;
       }
     }
+    const lengths = partLengths(photo.bytes, plan.partSize);
     const parts = await Promise.all(
-      Array.from({ length: plan.count }, async (_, i) => ({
+      lengths.map(async (len, i) => ({
         n: i + 1,
-        url: await r2.presignPart(photo.original_key, uploadId, i + 1),
+        url: await r2.presignPart(photo.original_key, uploadId, i + 1, len),
+        content_length: len,
       })),
     );
     original = { mode: 'multipart', upload_id: uploadId, part_size: plan.partSize, parts };
@@ -170,20 +191,22 @@ async function issueUrls(
     status: 'upload',
     photo_id: photo.id,
     original,
-    display: { url: display, headers: jpeg },
-    thumb: { url: thumb, headers: jpeg },
+    display: { url: display, headers: jpeg, content_length: sizes.display },
+    thumb: { url: thumb, headers: jpeg, content_length: sizes.thumb },
     expires_at: expiresAt,
   };
 }
 
 async function initUpload(
   admin: SupabaseClient,
+  userClient: SupabaseClient,
   r2: R2,
   userId: string,
   req: UploadInitRequest,
   ctx: UploadContext | null,
   depth = 0,
 ): Promise<UploadInitResponse> {
+  const sizes = { display: req.display_bytes, thumb: req.thumb_bytes };
   const existing = await selectPhoto(admin, req.photo_id);
   if (existing) {
     const d = classifyExisting(existing, req, userId);
@@ -194,7 +217,7 @@ async function initUpload(
     // Resume: access is re-checked, size/quota/guest-count were checked on the first init.
     const access = decideUploadAccess(ctx);
     if (!access.ok) deny(access);
-    return issueUrls(admin, r2, existing, ctx!.max_upload_parts);
+    return issueUrls(admin, r2, existing, ctx!.max_upload_parts, sizes);
   }
 
   const access = decideUploadAccess(ctx, { bytes: req.bytes, guestMaxPhotos: await loadGuestMax(admin, ctx) });
@@ -204,7 +227,7 @@ async function initUpload(
   const dup = await selectDuplicate(admin, req.roll_id, req.content_hash);
   if (dup) {
     if (classifyDuplicate(dup, userId, Date.now()) === 'duplicate') {
-      return { status: 'duplicate', existing_photo_id: dup.id };
+      return duplicateAnswer(dup.id, dup.uploader_id === userId || (await callerCanSee(userClient, dup.id)));
     }
     await dropStalePending(admin, r2, dup.id);
   }
@@ -232,21 +255,21 @@ async function initUpload(
   const { data, error } = await admin.from('photos').insert(row).select(PHOTO_COLS).single();
   if (error) {
     // Lost a race with a concurrent init of the same photo or the same bytes: decide again.
-    if (uniqueViolation(error) && depth < 2) return initUpload(admin, r2, userId, req, ctx, depth + 1);
+    if (uniqueViolation(error) && depth < 2) return initUpload(admin, userClient, r2, userId, req, ctx, depth + 1);
     throw error;
   }
-  return issueUrls(admin, r2, data as ExistingPhoto, c.max_upload_parts);
+  return issueUrls(admin, r2, data as ExistingPhoto, c.max_upload_parts, sizes);
 }
 
 Deno.serve(
   serve(async (req) => {
-    const { userId, admin } = await requireUser(req, { allowGuest: true });
+    const { userId, admin, userClient } = await requireUser(req, { allowGuest: true });
     const v = validateInitRequest(await readJson(req));
     if (!v.ok) throw new HttpError(400, 'invalid_input', `Invalid ${v.field}`, { field: v.field });
     const cfg = r2Config();
     if (!cfg) throw new HttpError(503, 'storage_not_configured', 'Uploads are paused for now');
     const ctx = await loadContext(admin, userId, v.value.roll_id);
-    const res = await initUpload(admin, createR2(cfg), userId, v.value, ctx);
+    const res = await initUpload(admin, userClient, createR2(cfg), userId, v.value, ctx);
     return json(res, 200, req);
   }),
 );

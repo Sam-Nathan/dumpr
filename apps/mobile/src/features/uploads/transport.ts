@@ -71,16 +71,29 @@ function header(headers: Record<string, string> | undefined, name: string): stri
   return null;
 }
 
+/**
+ * PUT a file. The presigned URL signs the Content-Type header and the exact body length, so we send exactly
+ * the `headers` upload-init returned (never anything else that is signed) and refuse to send a file whose
+ * size differs from the signed `content-length`. The native uploader streams the file and sets
+ * Content-Length itself from its size.
+ */
 async function putFile(
   uri: string,
   url: string,
   headers: Record<string, string>,
+  signedLength: number | undefined,
   onProgress: (sent: number) => void,
   signal: AbortSignal,
 ): Promise<{ etag: string | null }> {
   let result;
   try {
-    result = await new File(uri).upload(url, {
+    const file = new File(uri);
+    if (typeof signedLength === 'number' && file.size !== signedLength) {
+      throw new UploadError('file_missing', {
+        message: `file is ${file.size} bytes, the upload was signed for ${signedLength}`,
+      });
+    }
+    result = await file.upload(url, {
       httpMethod: 'PUT',
       uploadType: UploadType.BINARY_CONTENT,
       headers,
@@ -88,6 +101,7 @@ async function putFile(
       signal,
     });
   } catch (e) {
+    if (e instanceof UploadError) throw e;
     if (signal.aborted) throw new UploadError('cancelled');
     const msg = e instanceof Error ? e.message : String(e);
     if (/no such file|not exist|ENOENT|couldn.t be opened/i.test(msg))
@@ -115,7 +129,7 @@ export function createMobileTransport(files: ItemFiles, signal: AbortSignal): Up
     complete: (req: UploadCompleteRequest) =>
       callFunction<UploadCompleteResponse>('upload-complete', req, signal),
     putVariant: (v: UploadVariant, target: PresignedPut, onProgress) =>
-      putFile(uriFor(v), target.url, target.headers, onProgress, signal),
+      putFile(uriFor(v), target.url, target.headers, target.content_length, onProgress, signal),
     async putPart(part: PartRange, url: string, onProgress) {
       // Copy the byte range into a temp file and stream it with the native uploader.
       const tmp = new File(Paths.cache, `dumpr-part-${files.id}-${part.n}.bin`);
@@ -139,7 +153,8 @@ export function createMobileTransport(files: ItemFiles, signal: AbortSignal): Up
         });
       }
       try {
-        return await putFile(tmp.uri, url, {}, onProgress, signal);
+        // Parts sign only content-length: the temp file holds exactly the part's bytes.
+        return await putFile(tmp.uri, url, {}, part.end - part.start, onProgress, signal);
       } finally {
         try {
           tmp.delete();

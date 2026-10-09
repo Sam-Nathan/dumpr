@@ -1,7 +1,17 @@
 // send-sms-msg91: Supabase "Send SMS" auth hook. Verifies the Standard Webhooks signature, then sends the
 // OTP through MSG91's Flow API (DLT template). Responds in the hook's error shape.
 import { corsHeaders } from '../_shared/http.ts';
-import { flowBody, hookError, maskPhone, MSG91_FLOW_URL, msg91Accepted, msg91Config, mobilesFor, parseHookPayload } from './msg91.ts';
+import {
+  destinationAllowed,
+  flowBody,
+  hookError,
+  maskPhone,
+  MSG91_FLOW_URL,
+  msg91Accepted,
+  msg91Config,
+  mobilesFor,
+  parseHookPayload,
+} from './msg91.ts';
 import { verifyWebhook } from './webhook.ts';
 
 const reply = (status: number, body: unknown) =>
@@ -34,6 +44,10 @@ async function handle(req: Request): Promise<Response> {
   }
   const mobiles = payload ? mobilesFor(payload.phone) : null;
   if (!payload || !mobiles) return reply(400, hookError(400, 'invalid_payload'));
+  if (!destinationAllowed(mobiles, Deno.env.get('SMS_ALLOWED_PREFIXES'))) {
+    console.error('send-sms-msg91: destination not allowed', maskPhone(payload.phone));
+    return reply(400, hookError(400, 'sms_country_not_supported'));
+  }
 
   try {
     const res = await fetch(MSG91_FLOW_URL, {

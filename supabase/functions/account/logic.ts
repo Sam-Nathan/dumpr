@@ -1,5 +1,6 @@
 // Pure helpers for the account function.
 import { HttpError } from '../_shared/http.ts';
+import { isAvatarKeyOf } from '../_shared/r2.ts';
 
 export const EXPORT_TTL_S = 24 * 60 * 60; // 24 h
 export const EXPORT_CAP = 5000;
@@ -39,6 +40,14 @@ export function parseSummary(data: unknown): AccountSummary {
 /** 409 last_host with the crews the user must hand over first. */
 export function lastHostError(crews: SoleHostCrew[]): HttpError {
   return new HttpError(409, 'last_host', 'Transfer host in these Crews before deleting your account', { crews });
+}
+
+/**
+ * The avatar object to purge with the account: only a key under the user's own prefix. profiles.avatar_key is
+ * client-writable, so anything else (an original, another user's avatar) must never reach the purge queue.
+ */
+export function ownAvatarKey(userId: string, key: unknown): string | null {
+  return isAvatarKeyOf(userId, key) ? key : null;
 }
 
 export interface KeyRow {

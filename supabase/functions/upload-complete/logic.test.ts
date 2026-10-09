@@ -1,8 +1,14 @@
 import { assertEquals } from 'jsr:@std/assert@1';
-import { classifyCompleteMultipartError, incompleteDetails, verifyObjects, type HeadResult } from './logic.ts';
+import {
+  classifyCompleteMultipartError,
+  incompleteDetails,
+  normalizeMime,
+  verifyObjects,
+  type HeadResult,
+} from './logic.ts';
 
 const MD5 = '0123456789abcdef0123456789abcdef';
-const head = (size: number, etag = 'x'): HeadResult => ({ size, etag, contentType: 'image/jpeg' });
+const head = (size: number, etag = 'x', contentType: string | null = 'image/jpeg'): HeadResult => ({ size, etag, contentType });
 const base = {
   bytes: 1000,
   contentHash: `md5:${MD5}`,
@@ -46,4 +52,29 @@ Deno.test('incompleteDetails only carries set flags', () => {
     missing: ['original'],
     reset_parts: true,
   });
+});
+
+Deno.test('derived variants must be exactly the size their URL was signed for', () => {
+  const sized = { ...base, displayBytes: 100, thumbBytes: 10 };
+  assertEquals(verifyObjects(sized), []);
+  assertEquals(verifyObjects({ ...sized, heads: { ...base.heads, thumb: head(11) } }), ['thumb']);
+  assertEquals(verifyObjects({ ...sized, heads: { ...base.heads, display: head(99) } }), ['display']);
+  // sizes not recorded (upload started before they were stored): only the upper bounds apply
+  assertEquals(verifyObjects({ ...base, displayBytes: null, thumbBytes: null, heads: { ...base.heads, thumb: head(11) } }), []);
+});
+
+Deno.test('Content-Type of every stored object is verified', () => {
+  const withMime = { ...base, mime: 'image/jpeg' };
+  assertEquals(verifyObjects(withMime), []);
+  assertEquals(verifyObjects({ ...withMime, heads: { ...base.heads, thumb: head(10, 'x', 'text/html') } }), ['thumb']);
+  assertEquals(verifyObjects({ ...withMime, heads: { ...base.heads, display: head(100, 'x', null) } }), ['display']);
+  assertEquals(verifyObjects({ ...withMime, heads: { ...base.heads, original: head(1000, MD5, 'text/html') } }), ['original']);
+  assertEquals(verifyObjects({ ...withMime, mime: 'image/png' }), ['original']);
+  assertEquals(verifyObjects({ ...withMime, mime: 'image/heic', heads: { ...base.heads, original: head(1000, MD5, 'IMAGE/HEIC') } }), []);
+  assertEquals(
+    verifyObjects({ ...withMime, multipart: true, heads: { ...base.heads, original: head(1000, 'abc-3', 'application/octet-stream') } }),
+    ['original'],
+  );
+  assertEquals(normalizeMime('Image/JPEG; charset=binary'), 'image/jpeg');
+  assertEquals(normalizeMime(null), '');
 });

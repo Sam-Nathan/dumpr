@@ -176,12 +176,16 @@ describe('runUpload', () => {
   it('refuses to send a body whose length differs from the signed content-length', async () => {
     const bad = uploadRes({ thumb: put('t', 11) });
     const a = fakeTransport({ initResponses: [bad] });
-    await expect(runUpload(job(), emptyProgress(), a.t)).rejects.toMatchObject({ code: 'internal' });
+    await expect(runUpload(job(), emptyProgress(), a.t)).rejects.toMatchObject({
+      code: 'internal',
+    });
     expect(a.calls.puts).toEqual([]);
     const b = fakeTransport({
       initResponses: [uploadRes({ original: { mode: 'put', ...put('o', 999) } })],
     });
-    await expect(runUpload(job(), emptyProgress(), b.t)).rejects.toMatchObject({ code: 'internal' });
+    await expect(runUpload(job(), emptyProgress(), b.t)).rejects.toMatchObject({
+      code: 'internal',
+    });
     expect(b.calls.puts).toEqual(['thumb', 'display']);
     const c = multipartRes('U1', 8 * MiB, 3, 21 * MiB); // last part signed for 5 MiB, range is 4 MiB
     const d = fakeTransport({ initResponses: [c] });

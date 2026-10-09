@@ -6,13 +6,13 @@ import { r2Config } from '../_shared/env.ts';
 import { createR2, type R2 } from '../_shared/r2.ts';
 import {
   downloadName,
-  isAvatarKey,
   itemKey,
   keyFor,
   originalAllowed,
   parseSignRequest,
   type PhotoRow,
   SIGN_TTL_S,
+  signableAvatarKeys,
   type Unavailable,
 } from './logic.ts';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
@@ -125,8 +125,8 @@ async function signItems(
 
 async function signAvatars(userClient: SupabaseClient, r2: R2, keys: string[]) {
   // profiles RLS = self or shares a space, so strangers' avatars are not returned.
-  const rows = await selectIn<{ avatar_key: string | null }>(userClient, 'profiles', 'avatar_key', 'avatar_key', keys);
-  const allowed = new Set(rows.map((r) => r.avatar_key).filter((k): k is string => !!k && isAvatarKey(k)));
+  const rows = await selectIn<{ id: string; avatar_key: string | null }>(userClient, 'profiles', 'id, avatar_key', 'avatar_key', keys);
+  const allowed = signableAvatarKeys(rows, keys);
   const urls: Record<string, string> = {};
   const unavailable: Record<string, Unavailable> = {};
   await Promise.all(

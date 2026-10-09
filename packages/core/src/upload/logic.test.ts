@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { nextRetryAt, retryDelayMs } from './backoff.ts';
-import { DEFAULT_PART_SIZE, MAX_AUTO_ATTEMPTS, MiB, SINGLE_PUT_MAX_BYTES } from './constants.ts';
+import {
+  DEFAULT_PART_SIZE,
+  MAX_AUTO_ATTEMPTS,
+  MAX_PENDING_UPLOADS,
+  MiB,
+  SINGLE_PUT_MAX_BYTES,
+} from './constants.ts';
 import { UploadError, errorFromResponse, errorToState, toUploadError } from './errors.ts';
 import { missingParts, partRanges, planParts } from './parts.ts';
 import { summarizeUploads } from './summary.ts';
@@ -403,10 +409,37 @@ describe('decideUploadAccess', () => {
       decideUploadAccess(ctx({ storage_used_bytes: 90, storage_limit_bytes: 100 }), { bytes: 10 })
         .ok,
     ).toBe(true);
+    // unfinished uploads count toward the quota
+    expect(
+      decideUploadAccess(
+        ctx({ storage_used_bytes: 50, pending_bytes: 40, storage_limit_bytes: 100 }),
+        { bytes: 11 },
+      ),
+    ).toEqual({ ok: false, status: 413, code: 'storage_full' });
+    expect(
+      decideUploadAccess(
+        ctx({ storage_used_bytes: 50, pending_bytes: 40, storage_limit_bytes: 100 }),
+        { bytes: 10 },
+      ).ok,
+    ).toBe(true);
     // size is not re-checked at complete (no bytes)
     expect(decideUploadAccess(ctx({ storage_used_bytes: 900, storage_limit_bytes: 100 })).ok).toBe(
       true,
     );
+  });
+
+  it('caps unfinished uploads per user (init only)', () => {
+    expect(
+      decideUploadAccess(ctx({ pending_count: MAX_PENDING_UPLOADS - 1 }), { bytes: 1 }).ok,
+    ).toBe(true);
+    expect(decideUploadAccess(ctx({ pending_count: MAX_PENDING_UPLOADS }), { bytes: 1 })).toEqual({
+      ok: false,
+      status: 429,
+      code: 'rate_limited',
+    });
+    // resuming / completing an upload that already exists is never rate limited
+    expect(decideUploadAccess(ctx({ pending_count: 10_000 })).ok).toBe(true);
+    expect(errorToState('rate_limited').kind).toBe('retryable');
   });
 
   it('guest rules', () => {
@@ -465,6 +498,11 @@ describe('decideUploadAccess', () => {
       guest_max_photos_per_roll: null,
     });
     expect(parseUploadContext({})!.max_photo_bytes).toBe(50 * MiB);
+    expect(parseUploadContext({ pending_count: '3', pending_bytes: 1000 })).toMatchObject({
+      pending_count: 3,
+      pending_bytes: 1000,
+    });
+    expect(parseUploadContext({})).toMatchObject({ pending_count: 0, pending_bytes: 0 });
   });
 });
 
