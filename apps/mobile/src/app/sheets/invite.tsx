@@ -84,7 +84,8 @@ export default function InviteSheet() {
   const name = isRoll ? (roll.data?.roll.name ?? '') : (crew.data?.crew.name ?? '');
   const memberCount = crew.data?.members.length;
   const isAdmin = isRoll ? !!roll.data?.my.is_admin : !!crew.data?.my.is_admin;
-  const memberInvitesOff = isRoll && !!roll.data && !roll.data.my.is_admin && !roll.data.roll.allow_member_invites;
+  const memberInvitesOff =
+    isRoll && !!roll.data && !roll.data.my.is_admin && !roll.data.roll.allow_member_invites;
 
   const link = useInviteLink(crewId ? { crewId, rollId: rollId ?? null } : null, settings);
   const linkError = link.error ? toAppError(link.error) : null;
@@ -235,7 +236,12 @@ export default function InviteSheet() {
             </View>
           )}
           {link.isError ? (
-            <Button label="Try again" size="sm" variant="secondary" onPress={() => void link.refetch()} />
+            <Button
+              label="Try again"
+              size="sm"
+              variant="secondary"
+              onPress={() => void link.refetch()}
+            />
           ) : (
             <Button
               label="Copy"
@@ -249,8 +255,18 @@ export default function InviteSheet() {
         </View>
 
         <View className="flex-row">
-          <Target label="WhatsApp" icon="chat" bg="bg-[#CFEFD9] dark:bg-[#1F3D2B]" onPress={() => void whatsapp()} />
-          <Target label="SMS" icon="mail" bg="bg-tint-sky dark:bg-tint-sky-dark" onPress={() => void sms()} />
+          <Target
+            label="WhatsApp"
+            icon="chat"
+            bg="bg-[#CFEFD9] dark:bg-[#1F3D2B]"
+            onPress={() => void whatsapp()}
+          />
+          <Target
+            label="SMS"
+            icon="mail"
+            bg="bg-tint-sky dark:bg-tint-sky-dark"
+            onPress={() => void sms()}
+          />
           <Target
             label="More"
             icon="more"
@@ -292,9 +308,17 @@ export default function InviteSheet() {
                   </Text>
                   <Segmented
                     accessibilityLabel="Link expiry"
-                    options={EXPIRY_OPTIONS.map((d) => ({ value: String(d), label: expiryLabel(d) }))}
+                    options={EXPIRY_OPTIONS.map((d) => ({
+                      value: String(d),
+                      label: expiryLabel(d),
+                    }))}
                     value={String(settings.ttlDays)}
-                    onChange={(v) => setSettings((s) => ({ ...s, ttlDays: Number(v) as InviteSettings['ttlDays'] }))}
+                    onChange={(v) =>
+                      setSettings((s) => ({
+                        ...s,
+                        ttlDays: Number(v) as InviteSettings['ttlDays'],
+                      }))
+                    }
                   />
                   <ToggleRow
                     title="Host approves new members"

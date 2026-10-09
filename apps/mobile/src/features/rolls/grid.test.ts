@@ -32,8 +32,13 @@ describe('keyset paging', () => {
   });
 
   it('returns a cursor only after a full page', () => {
-    const full = Array.from({ length: PHOTOS_PAGE_SIZE }, (_, i) => photo(`p${i}`, `2026-01-01T00:00:${String(i % 60).padStart(2, '0')}Z`));
-    expect(nextCursor(full)).toEqual({ sortAt: full[full.length - 1]?.sort_at, id: `p${PHOTOS_PAGE_SIZE - 1}` });
+    const full = Array.from({ length: PHOTOS_PAGE_SIZE }, (_, i) =>
+      photo(`p${i}`, `2026-01-01T00:00:${String(i % 60).padStart(2, '0')}Z`),
+    );
+    expect(nextCursor(full)).toEqual({
+      sortAt: full[full.length - 1]?.sort_at,
+      id: `p${PHOTOS_PAGE_SIZE - 1}`,
+    });
     expect(nextCursor(full.slice(0, 10))).toBeUndefined();
     expect(nextCursor([])).toBeUndefined();
   });
@@ -93,7 +98,9 @@ describe('rows', () => {
   });
 
   it('clamps columns to 2-5 and pinches one step at a time', () => {
-    expect(toGridRows([{ key: 'a', title: 'A', photos: [1, 2, 3, 4, 5, 6] }], 9).rows).toHaveLength(3);
+    expect(toGridRows([{ key: 'a', title: 'A', photos: [1, 2, 3, 4, 5, 6] }], 9).rows).toHaveLength(
+      3,
+    );
     expect(columnsAfterPinch(3, 1.6)).toBe(2);
     expect(columnsAfterPinch(2, 2)).toBe(2);
     expect(columnsAfterPinch(3, 0.5)).toBe(4);
@@ -108,10 +115,16 @@ describe('viewer order', () => {
       { id: 'c1', name: 'Haldi', sort: 1, day: null },
       { id: 'c2', name: 'Sangeet', sort: 2, day: null },
     ];
-    const photos = [photo('a', '2025-11-23T20:00:00Z', 'c2'), photo('b', '2025-11-23T12:00:00Z', 'c1')];
+    const photos = [
+      photo('a', '2025-11-23T20:00:00Z', 'c2'),
+      photo('b', '2025-11-23T12:00:00Z', 'c1'),
+    ];
     const mode = sectionModeFor(chapters, null);
     expect(mode).toBe('chapter');
-    expect(flattenSections(groupIntoSections(photos, chapters, mode)).map((p) => p.id)).toEqual(['b', 'a']);
+    expect(flattenSections(groupIntoSections(photos, chapters, mode)).map((p) => p.id)).toEqual([
+      'b',
+      'a',
+    ]);
     expect(sectionModeFor(chapters, 'c1')).toBe('day');
     expect(sectionModeFor([], null)).toBe('day');
   });

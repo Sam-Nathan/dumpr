@@ -150,7 +150,13 @@ export interface RollSettings {
 
 export interface RollHeader {
   roll: RollSettings;
-  crew: { id: string; name: string; tint: CrewTint; deleted_at: string | null; purge_after: string | null };
+  crew: {
+    id: string;
+    name: string;
+    tint: CrewTint;
+    deleted_at: string | null;
+    purge_after: string | null;
+  };
   chapters: RollChapter[];
   my: {
     role: MemberRole | 'guest' | 'member' | null;

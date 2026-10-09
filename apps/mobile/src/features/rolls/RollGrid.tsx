@@ -69,7 +69,10 @@ function renderCell(cell: Cell, ctx: GridCtx) {
         </View>
       ) : null}
       {p.status === 'review' ? (
-        <View pointerEvents="none" className="absolute left-1.5 top-1.5 rounded-pill bg-ink px-2 py-0.5">
+        <View
+          pointerEvents="none"
+          className="absolute left-1.5 top-1.5 rounded-pill bg-ink px-2 py-0.5"
+        >
           <Text variant="stamp" className="text-[10px]">
             REVIEW
           </Text>

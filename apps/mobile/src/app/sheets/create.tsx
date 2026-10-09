@@ -266,7 +266,12 @@ export default function CreateSheet() {
           <>
             <View className="flex-row flex-wrap gap-2">
               {ROLL_TYPE_CHIPS.map((t) => (
-                <Chip key={t.id} label={t.label} selected={typeChip === t.id} onPress={() => pickType(t.id)} />
+                <Chip
+                  key={t.id}
+                  label={t.label}
+                  selected={typeChip === t.id}
+                  onPress={() => pickType(t.id)}
+                />
               ))}
             </View>
 
@@ -398,7 +403,11 @@ export default function CreateSheet() {
         value={dates}
         onApply={setDates}
       />
-      <ModalSheet visible={crewPickerOpen} onClose={() => setCrewPickerOpen(false)} title="In which Crew?">
+      <ModalSheet
+        visible={crewPickerOpen}
+        onClose={() => setCrewPickerOpen(false)}
+        title="In which Crew?"
+      >
         <View>
           {crews.map((c) => (
             <ListRow
@@ -406,7 +415,9 @@ export default function CreateSheet() {
               title={c.name}
               subtitle={`${c.member_count} members`}
               left={<View className={`h-9 w-9 rounded-pill ${TINT_BG[c.tint]}`} />}
-              right={c.id === crewId ? <Icon name="check" size={20} color={colors.ink} /> : <View />}
+              right={
+                c.id === crewId ? <Icon name="check" size={20} color={colors.ink} /> : <View />
+              }
               onPress={() => {
                 setCrewId(c.id);
                 setCrewPickerOpen(false);
@@ -418,4 +429,3 @@ export default function CreateSheet() {
     </SheetContent>
   );
 }
-

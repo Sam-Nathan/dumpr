@@ -13,7 +13,10 @@ export function CrewCard({ crew }: { crew: HomeCrew }) {
     () => crew.stack.map((k) => photoIdFromKey(k)).filter((x): x is string => !!x),
     [crew.stack],
   );
-  const items = useMemo(() => ids.map((photoId) => ({ photoId, variant: 'thumb' as const })), [ids]);
+  const items = useMemo(
+    () => ids.map((photoId) => ({ photoId, variant: 'thumb' as const })),
+    [ids],
+  );
   const urls = useSignedUrls(items);
   const cards: StackCard[] = ids.length
     ? ids.map((id) => ({ uri: urls[`${id}:thumb`], cacheKey: `${id}:thumb` })).reverse()
@@ -37,7 +40,11 @@ export function CrewCard({ crew }: { crew: HomeCrew }) {
           </Text>
           <Text variant="caption" tone="secondary" className="mt-1">
             {pluralize(crew.member_count, 'member')}
-            {deleted ? ' · Deleted' : activity && activity !== 'now' ? ` · active ${activity}` : ' · active now'}
+            {deleted
+              ? ' · Deleted'
+              : activity && activity !== 'now'
+                ? ` · active ${activity}`
+                : ' · active now'}
           </Text>
         </View>
         <Facepile

@@ -1,17 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { albumName, applyReaction, captionParts, extensionFor, saveVariantFor, withTombstones } from './helpers';
+import {
+  albumName,
+  applyReaction,
+  captionParts,
+  extensionFor,
+  saveVariantFor,
+  withTombstones,
+} from './helpers';
 
 describe('withTombstones', () => {
   it('keeps a placeholder where a photo disappeared', () => {
     const prev = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
     const next = [{ id: 'a' }, { id: 'c' }];
-    expect(withTombstones(prev, next)).toEqual([{ id: 'a' }, { id: 'b', removed: true }, { id: 'c' }]);
+    expect(withTombstones(prev, next)).toEqual([
+      { id: 'a' },
+      { id: 'b', removed: true },
+      { id: 'c' },
+    ]);
   });
 
   it('keeps an old placeholder across refreshes and drops it when nothing changed', () => {
     const first = withTombstones([{ id: 'a' }, { id: 'b' }], [{ id: 'a' }]);
     expect(withTombstones(first, [{ id: 'a' }])).toEqual(first);
-    expect(withTombstones([{ id: 'a' }], [{ id: 'a' }, { id: 'z' }])).toEqual([{ id: 'a' }, { id: 'z' }]);
+    expect(withTombstones([{ id: 'a' }], [{ id: 'a' }, { id: 'z' }])).toEqual([
+      { id: 'a' },
+      { id: 'z' },
+    ]);
   });
 
   it('appends rows from the next page after a placeholder', () => {
@@ -60,7 +74,13 @@ describe('applyReaction', () => {
     expect(next).toEqual({ counts: { ICONIC: 10, LMAO: 5 }, mine: 'ICONIC' });
   });
   it('adds and removes without going negative', () => {
-    expect(applyReaction({ counts: {}, mine: null }, 'HEART')).toEqual({ counts: { HEART: 1 }, mine: 'HEART' });
-    expect(applyReaction({ counts: { HEART: 1 }, mine: 'HEART' }, null)).toEqual({ counts: { HEART: 0 }, mine: null });
+    expect(applyReaction({ counts: {}, mine: null }, 'HEART')).toEqual({
+      counts: { HEART: 1 },
+      mine: 'HEART',
+    });
+    expect(applyReaction({ counts: { HEART: 1 }, mine: 'HEART' }, null)).toEqual({
+      counts: { HEART: 0 },
+      mine: null,
+    });
   });
 });

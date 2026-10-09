@@ -156,7 +156,7 @@ export default function Home() {
           </>
         ) : null}
 
-        {invites.map((inv, i) => (
+        {invites.map((inv) => (
           <InviteCard
             key={inv.id}
             invite={inv}
@@ -184,7 +184,12 @@ export default function Home() {
 
         {crews.length > 0 ? (
           <View className="items-center">
-            <Button label="Got a link?" variant="tertiary" icon="link" onPress={() => setLinkOpen(true)} />
+            <Button
+              label="Got a link?"
+              variant="tertiary"
+              icon="link"
+              onPress={() => setLinkOpen(true)}
+            />
           </View>
         ) : null}
       </ScrollView>

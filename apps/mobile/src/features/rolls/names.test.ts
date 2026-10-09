@@ -28,7 +28,11 @@ describe('name suggestions', () => {
   });
 
   it('puts the place first and keeps at most three unique ideas', () => {
-    const names = suggestRollNames({ place: 'Goa', start: '2026-03-14', today: today('2026-10-12') });
+    const names = suggestRollNames({
+      place: 'Goa',
+      start: '2026-03-14',
+      today: today('2026-10-12'),
+    });
     expect(names[0]).toBe("Goa '26");
     expect(names).toHaveLength(3);
     expect(new Set(names).size).toBe(3);

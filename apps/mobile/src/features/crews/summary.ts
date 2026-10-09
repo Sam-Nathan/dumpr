@@ -7,10 +7,16 @@ interface Person {
 }
 
 /** "Aarav, Kabir, you +3" (hosts first, then me, then a remainder). */
-export function memberSummary(members: readonly Person[], meId: string | null | undefined, maxNames = 2): string {
+export function memberSummary(
+  members: readonly Person[],
+  meId: string | null | undefined,
+  maxNames = 2,
+): string {
   const others = members.filter((m) => m.user_id !== meId);
   const iAmIn = members.some((m) => m.user_id === meId);
-  const names = others.slice(0, maxNames).map((m) => m.display_name.split(/\s+/)[0] || m.display_name);
+  const names = others
+    .slice(0, maxNames)
+    .map((m) => m.display_name.split(/\s+/)[0] || m.display_name);
   if (iAmIn) names.push('you');
   const shown = names.length;
   const extra = members.length - shown;
@@ -31,7 +37,10 @@ export type MemberAction = 'make_cohost' | 'make_member' | 'make_host' | 'remove
  * What the viewer may do to another member (architecture §5): the host can promote, demote,
  * hand over the Crew and remove anyone; a co-host can remove plain members only.
  */
-export function memberActions(myRole: MemberRole | null | undefined, target: MemberRole): MemberAction[] {
+export function memberActions(
+  myRole: MemberRole | null | undefined,
+  target: MemberRole,
+): MemberAction[] {
   if (myRole === 'host') {
     if (target === 'host') return [];
     return [target === 'cohost' ? 'make_member' : 'make_cohost', 'make_host', 'remove'];

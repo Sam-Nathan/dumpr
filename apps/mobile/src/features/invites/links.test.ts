@@ -34,7 +34,12 @@ describe('invite links', () => {
     );
     expect(linkSettingsSummary({ ttlDays: 1, requiresApproval: false })).toBe('Expires in 1 day');
     expect(
-      linkSettingsSummary({ ttlDays: 30, requiresApproval: false, allowGuests: false, showGuests: true }),
+      linkSettingsSummary({
+        ttlDays: 30,
+        requiresApproval: false,
+        allowGuests: false,
+        showGuests: true,
+      }),
     ).toBe('Expires in 30 days · members only');
   });
 });

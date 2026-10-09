@@ -32,7 +32,6 @@ import {
   edge,
   Facepile,
   goBack,
-  haptic,
   IconButton,
   ListRow,
   ModalSheet,
@@ -102,7 +101,10 @@ export default function CrewScreen() {
     if (action === 'make_cohost') {
       await run(() => setMemberRole(id, m.user_id, 'cohost'), `${m.display_name} is now a co-host`);
     } else if (action === 'make_member') {
-      await run(() => setMemberRole(id, m.user_id, 'member'), `${m.display_name} is a member again`);
+      await run(
+        () => setMemberRole(id, m.user_id, 'member'),
+        `${m.display_name} is a member again`,
+      );
     } else if (action === 'make_host') {
       const ok = await confirmDialog({
         title: `Make ${m.display_name} the host?`,
@@ -272,7 +274,11 @@ export default function CrewScreen() {
             accessibilityState={{ selected: true }}
             className="h-10 justify-center rounded-pill bg-ink px-5 dark:bg-ink-dark"
           >
-            <Text variant="caption" tone="inverse" className="font-body-bold text-[14px] dark:text-ink">
+            <Text
+              variant="caption"
+              tone="inverse"
+              className="font-body-bold text-[14px] dark:text-ink"
+            >
               Rolls
             </Text>
           </View>
@@ -295,9 +301,7 @@ export default function CrewScreen() {
   let body: React.ReactNode;
   if (err && !data) {
     const c =
-      err.code === 'not_a_member'
-        ? edge.removedFromCrew(name || 'this Crew')
-        : edge.fromError(err);
+      err.code === 'not_a_member' ? edge.removedFromCrew(name || 'this Crew') : edge.fromError(err);
     body = (
       <View className="px-4 pt-8">
         <EdgeState
@@ -310,7 +314,11 @@ export default function CrewScreen() {
               ? { label: 'Go home', onPress: () => router.replace('/') }
               : { label: 'Try again', onPress: () => void q.refetch() }
           }
-          secondary={err.code === 'not_a_member' ? undefined : { label: 'Go home', onPress: () => router.replace('/') }}
+          secondary={
+            err.code === 'not_a_member'
+              ? undefined
+              : { label: 'Go home', onPress: () => router.replace('/') }
+          }
         />
       </View>
     );
@@ -378,7 +386,12 @@ export default function CrewScreen() {
         ))}
         {!isGuest ? (
           <NewRollCard
-            onPress={() => router.push({ pathname: '/sheets/create', params: { kind: 'roll', crewId: id as string } })}
+            onPress={() =>
+              router.push({
+                pathname: '/sheets/create',
+                params: { kind: 'roll', crewId: id as string },
+              })
+            }
           />
         ) : null}
       </View>
@@ -397,13 +410,21 @@ export default function CrewScreen() {
       </ScrollView>
 
       {data && !deleted && !isGuest ? (
-        <View className="absolute inset-x-0 bottom-0 px-4" style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
+        <View
+          className="absolute inset-x-0 bottom-0 px-4"
+          style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+        >
           <Button
             label="New Roll"
             icon="plus"
             variant="primary"
             size="lg"
-            onPress={() => router.push({ pathname: '/sheets/create', params: { kind: 'roll', crewId: id as string } })}
+            onPress={() =>
+              router.push({
+                pathname: '/sheets/create',
+                params: { kind: 'roll', crewId: id as string },
+              })
+            }
           />
         </View>
       ) : null}

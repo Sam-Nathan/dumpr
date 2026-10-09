@@ -9,7 +9,14 @@ import { displayLink } from './links';
 export function QrCode({ value, size }: { value: string; size: number }) {
   return (
     <View className="rounded-[20px] bg-white p-3">
-      <QRCode value={value} size={size} color="#16141B" backgroundColor="#FFFFFF" ecl="M" quietZone={0} />
+      <QRCode
+        value={value}
+        size={size}
+        color="#16141B"
+        backgroundColor="#FFFFFF"
+        ecl="M"
+        quietZone={0}
+      />
     </View>
   );
 }

@@ -43,7 +43,8 @@ export function ListRow({
         divider ? 'border-b border-line dark:border-line-dark' : ''
       } ${disabled ? 'opacity-40' : ''}`}
     >
-      {left ?? (icon ? <Icon name={icon} size={22} color={destructive ? '#B42318' : color} /> : null)}
+      {left ??
+        (icon ? <Icon name={icon} size={22} color={destructive ? '#B42318' : color} /> : null)}
       <View className="flex-1">
         <Text variant="heading" tone={destructive ? 'danger' : 'default'} className="text-[16px]">
           {title}

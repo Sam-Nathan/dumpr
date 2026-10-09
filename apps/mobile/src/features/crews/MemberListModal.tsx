@@ -74,7 +74,14 @@ export function MemberListModal({
                 key={m.user_id}
                 title={mine ? `${m.display_name} (you)` : m.display_name}
                 subtitle={m.handle ? `@${m.handle}` : undefined}
-                left={<Avatar name={m.display_name} avatarKey={m.avatar_key} ring={m.ring_color} size={44} />}
+                left={
+                  <Avatar
+                    name={m.display_name}
+                    avatarKey={m.avatar_key}
+                    ring={m.ring_color}
+                    size={44}
+                  />
+                }
                 right={
                   m.role !== 'member' ? (
                     <Text variant="stamp" tone="tertiary" className="text-[11px]">

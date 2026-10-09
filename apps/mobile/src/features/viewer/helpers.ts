@@ -28,7 +28,9 @@ export function withTombstones<T extends { id: string }>(
 }
 
 export function isRemovedRow(row: ViewerRow | { status?: string }): boolean {
-  return ('removed' in row && row.removed === true) || ('status' in row && row.status === 'removed');
+  return (
+    ('removed' in row && row.removed === true) || ('status' in row && row.status === 'removed')
+  );
 }
 
 /** Android albums are directories: strip characters they cannot hold. "Dumpr/Goa '26". */

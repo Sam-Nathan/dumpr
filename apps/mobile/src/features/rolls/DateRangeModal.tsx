@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { formatDateRange, monthLong, parseDay } from '@/lib/format';
-import { Button, IconButton, ModalSheet, PressableScale, Text, useScheme, INK, INK_TEXT, FLASH } from '@/ui';
+import {
+  Button,
+  IconButton,
+  ModalSheet,
+  PressableScale,
+  Text,
+  useScheme,
+  INK,
+  INK_TEXT,
+  FLASH,
+} from '@/ui';
 import { monthGrid, pickRangeDay } from './names';
 
 export interface DateRange {
@@ -43,7 +53,6 @@ export function DateRangeModal({
       const n = new Date();
       setCursor({ y: n.getFullYear(), m: n.getMonth() });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const dark = useScheme() === 'dark';
@@ -122,12 +131,16 @@ export function DateRangeModal({
                   haptics={false}
                   onPress={() => setRange((r) => pickRangeDay(r, day))}
                   className="h-10 w-10 items-center justify-center rounded-pill"
-                  style={{ backgroundColor: edgeDay ? (dark ? INK_TEXT : INK) : on ? FLASH : 'transparent' }}
+                  style={{
+                    backgroundColor: edgeDay ? (dark ? INK_TEXT : INK) : on ? FLASH : 'transparent',
+                  }}
                 >
                   <Text
                     variant="caption"
                     className="font-body-bold text-[14px]"
-                    style={edgeDay ? { color: dark ? INK : INK_TEXT } : on ? { color: INK } : undefined}
+                    style={
+                      edgeDay ? { color: dark ? INK : INK_TEXT } : on ? { color: INK } : undefined
+                    }
                     tone="default"
                   >
                     {Number(day.slice(8))}

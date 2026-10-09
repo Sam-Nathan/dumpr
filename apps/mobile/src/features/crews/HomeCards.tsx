@@ -2,7 +2,17 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 import type { HomeLiveRoll, PendingDirectInvite } from '@/data/types-b';
 import { formatStamp } from '@/lib/format';
-import { Avatar, Button, DumpStack, Icon, PressableScale, Stamp, Text, TINT_BG, SHUTTER } from '@/ui';
+import {
+  Avatar,
+  Button,
+  DumpStack,
+  Icon,
+  PressableScale,
+  Stamp,
+  Text,
+  TINT_BG,
+  SHUTTER,
+} from '@/ui';
 import { useNow } from '../rolls/useNow';
 
 /** Pending in-app invite: "Tanvi invited you to Mood Indigo '26" with Join / Decline. */
@@ -34,13 +44,7 @@ export function InviteCard({
         <Button label="Join" variant="primary" size="sm" loading={busy} onPress={onJoin} />
       </View>
       <View className="mt-1 flex-row">
-        <Button
-          label="Decline"
-          variant="tertiary"
-          size="sm"
-          disabled={busy}
-          onPress={onDecline}
-        />
+        <Button label="Decline" variant="tertiary" size="sm" disabled={busy} onPress={onDecline} />
       </View>
     </View>
   );
@@ -63,7 +67,12 @@ export function LiveBanner({ roll, lime }: { roll: HomeLiveRoll; lime: boolean }
             LIVE NOW · {roll.crew_name}
           </Text>
         </View>
-        <Text variant="heading" tone="inverse" className="mt-1 text-[18px] leading-[22px]" numberOfLines={2}>
+        <Text
+          variant="heading"
+          tone="inverse"
+          className="mt-1 text-[18px] leading-[22px]"
+          numberOfLines={2}
+        >
           {roll.name}
         </Text>
         <Stamp text={formatStamp(now, { seconds: true })} size={11} />
@@ -128,4 +137,3 @@ export function StartCrewCard({
     </View>
   );
 }
-

@@ -35,11 +35,18 @@ export function TintPicker({
           >
             <View
               className={`h-11 w-11 items-center justify-center rounded-pill ${TINT_BG[t]}`}
-              style={{ borderWidth: selected ? 3 : 1, borderColor: selected ? INK : 'rgba(0,0,0,0.12)' }}
+              style={{
+                borderWidth: selected ? 3 : 1,
+                borderColor: selected ? INK : 'rgba(0,0,0,0.12)',
+              }}
             >
               {selected ? <Icon name="check" size={18} color={INK} strokeWidth={3} /> : null}
             </View>
-            <Text variant="caption" tone={selected ? 'default' : 'tertiary'} className="mt-1 text-[12px]">
+            <Text
+              variant="caption"
+              tone={selected ? 'default' : 'tertiary'}
+              className="mt-1 text-[12px]"
+            >
               {TINT_NAME[t]}
             </Text>
           </PressableScale>

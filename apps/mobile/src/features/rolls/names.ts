@@ -4,7 +4,15 @@
  */
 import { monthLong, monthShort, parseDay } from '../../lib/format';
 
-const WEEKDAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WEEKDAYS_LONG = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
 
 export type RollTypeChip = 'trip' | 'wedding' | 'fest' | 'birthday' | 'casual';
 export type RollKindValue = 'wedding' | 'trip' | 'fest' | 'everyday' | 'other';
@@ -78,7 +86,8 @@ export function suggestRollNames(input: {
     );
   } else {
     const dow = start.getUTCDay();
-    const label = dow === 0 || dow === 5 || dow === 6 ? 'Weekend' : (WEEKDAYS_LONG[dow] ?? 'Day out');
+    const label =
+      dow === 0 || dow === 5 || dow === 6 ? 'Weekend' : (WEEKDAYS_LONG[dow] ?? 'Day out');
     out.push(`${label} · ${start.getUTCDate()} ${month}`);
     out.push(`${month} ${yy}`);
   }

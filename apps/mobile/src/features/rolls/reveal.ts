@@ -23,7 +23,10 @@ export function formatRevealClock(ms: number): string {
 }
 
 /** "Reveal in 07:42:10"; null when the time has passed or there is none. */
-export function revealCountdownLabel(until: string | null, now: number = Date.now()): string | null {
+export function revealCountdownLabel(
+  until: string | null,
+  now: number = Date.now(),
+): string | null {
   if (!until) return null;
   const ms = new Date(until).getTime() - now;
   if (Number.isNaN(ms) || ms <= 0) return null;

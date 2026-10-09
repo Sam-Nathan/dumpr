@@ -50,7 +50,9 @@ export function ToggleRow({
 }: ToggleRowProps) {
   const helper = rest.disabled && disabledReason ? disabledReason : subtitle;
   return (
-    <View className={`min-h-[56px] flex-row items-center gap-3 py-2 ${rest.disabled ? 'opacity-60' : ''}`}>
+    <View
+      className={`min-h-[56px] flex-row items-center gap-3 py-2 ${rest.disabled ? 'opacity-60' : ''}`}
+    >
       {left}
       <View className="flex-1">
         <Text variant="heading" className="text-[16px]">

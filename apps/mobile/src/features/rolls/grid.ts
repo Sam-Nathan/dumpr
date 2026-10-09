@@ -35,7 +35,10 @@ export function cursorOf(row: Keyed): GridCursor {
  * The cursor is the last row's `(sort_at, id)` exactly as the server printed it, so microsecond
  * precision survives the round trip.
  */
-export function nextCursor(page: readonly Keyed[], pageSize = PHOTOS_PAGE_SIZE): GridCursor | undefined {
+export function nextCursor(
+  page: readonly Keyed[],
+  pageSize = PHOTOS_PAGE_SIZE,
+): GridCursor | undefined {
   if (page.length < pageSize) return undefined;
   const last = page[page.length - 1];
   return last ? cursorOf(last) : undefined;

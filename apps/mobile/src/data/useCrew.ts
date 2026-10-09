@@ -50,7 +50,9 @@ export interface CreateRollInput {
   chapters: string[];
 }
 
-export function createRoll(input: CreateRollInput): Promise<{ id: string; crew_id: string; name: string }> {
+export function createRoll(
+  input: CreateRollInput,
+): Promise<{ id: string; crew_id: string; name: string }> {
   return rpc('create_roll', {
     p_crew_id: input.crewId,
     p_name: input.name,

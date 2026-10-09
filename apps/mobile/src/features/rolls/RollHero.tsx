@@ -47,7 +47,10 @@ export function RollHero({
   const extra = Math.max(0, contributors.length - 2);
 
   return (
-    <View className={`rounded-b-sheet px-4 pb-4 ${TINT_BG[tint]}`} style={{ paddingTop: insets.top + 8 }}>
+    <View
+      className={`rounded-b-sheet px-4 pb-4 ${TINT_BG[tint]}`}
+      style={{ paddingTop: insets.top + 8 }}
+    >
       <View className="flex-row items-center justify-between">
         <IconButton icon="back" label="Back" onPress={goBack} />
         {header ? (
@@ -83,9 +86,19 @@ export function RollHero({
             </>
           ) : (
             <>
-              <Skeleton width="70%" height={40} radius={10} className="bg-white/50 dark:bg-white/10" />
+              <Skeleton
+                width="70%"
+                height={40}
+                radius={10}
+                className="bg-white/50 dark:bg-white/10"
+              />
               <View className="mt-2">
-                <Skeleton width="50%" height={14} radius={7} className="bg-white/50 dark:bg-white/10" />
+                <Skeleton
+                  width="50%"
+                  height={14}
+                  radius={7}
+                  className="bg-white/50 dark:bg-white/10"
+                />
               </View>
             </>
           )}
@@ -107,10 +120,17 @@ export function RollHero({
             size={28}
             max={4}
             total={contributors.length}
-            people={shown.map((c) => ({ name: c.display_name, avatarKey: c.avatar_key, ring: c.ring_color }))}
+            people={shown.map((c) => ({
+              name: c.display_name,
+              avatarKey: c.avatar_key,
+              ring: c.ring_color,
+            }))}
           />
           <Text variant="caption" tone="secondary" className="flex-shrink">
-            {creditLine(shown.map((c) => c.display_name), extra)}
+            {creditLine(
+              shown.map((c) => c.display_name),
+              extra,
+            )}
           </Text>
         </View>
       ) : null}

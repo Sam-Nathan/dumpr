@@ -59,7 +59,10 @@ export function useReactions(photoId: string | undefined) {
     queryFn: async (): Promise<ReactionState> => {
       const me = getSessionSnapshot()?.user.id;
       const [counts, mine] = await Promise.all([
-        supabase.from('photo_reaction_counts').select('kind, n').eq('photo_id', photoId as string),
+        supabase
+          .from('photo_reaction_counts')
+          .select('kind, n')
+          .eq('photo_id', photoId as string),
         me
           ? supabase
               .from('reactions')
@@ -75,7 +78,7 @@ export function useReactions(photoId: string | undefined) {
       for (const row of (counts.data ?? []) as { kind: ReactionKind; n: number }[]) {
         out[row.kind] = Number(row.n);
       }
-      return { counts: out, mine: ((mine.data as { kind: ReactionKind } | null)?.kind ?? null) };
+      return { counts: out, mine: (mine.data as { kind: ReactionKind } | null)?.kind ?? null };
     },
   });
 }
@@ -85,7 +88,11 @@ export async function setReaction(photoId: string, kind: ReactionKind | null): P
   const me = getSessionSnapshot()?.user.id;
   if (!me) throw new AppError('not_authenticated');
   if (kind === null) {
-    const { error } = await supabase.from('reactions').delete().eq('photo_id', photoId).eq('user_id', me);
+    const { error } = await supabase
+      .from('reactions')
+      .delete()
+      .eq('photo_id', photoId)
+      .eq('user_id', me);
     if (error) throw toAppError(error);
     return;
   }

@@ -4,7 +4,14 @@ import { deleteCrewBody, memberActions, memberSummary } from './summary';
 const m = (id: string, name: string) => ({ user_id: id, display_name: name });
 
 describe('memberSummary', () => {
-  const members = [m('a', 'Aarav Rao'), m('k', 'Kabir S'), m('me', 'Meera'), m('d', 'Diya'), m('z', 'Zoya'), m('t', 'Tanvi')];
+  const members = [
+    m('a', 'Aarav Rao'),
+    m('k', 'Kabir S'),
+    m('me', 'Meera'),
+    m('d', 'Diya'),
+    m('z', 'Zoya'),
+    m('t', 'Tanvi'),
+  ];
   it('lists two others, you, and the remainder', () => {
     expect(memberSummary(members, 'me')).toBe('Aarav, Kabir, you +3');
   });
@@ -30,7 +37,11 @@ describe('memberActions', () => {
 
 describe('deleteCrewBody', () => {
   it('matches the design copy', () => {
-    expect(deleteCrewBody(6)).toBe("6 members get 30 days to download their copies. This can't be undone.");
-    expect(deleteCrewBody(1)).toBe("1 member gets 30 days to download their copies. This can't be undone.");
+    expect(deleteCrewBody(6)).toBe(
+      "6 members get 30 days to download their copies. This can't be undone.",
+    );
+    expect(deleteCrewBody(1)).toBe(
+      "1 member gets 30 days to download their copies. This can't be undone.",
+    );
   });
 });

@@ -38,11 +38,7 @@ export function ModalSheet({
   maxHeight = '92%',
 }: ModalSheetProps) {
   const insets = useSafeAreaInsets();
-  const body = (
-    <View className="px-5 pb-4">
-      {children}
-    </View>
-  );
+  const body = <View className="px-5 pb-4">{children}</View>;
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView

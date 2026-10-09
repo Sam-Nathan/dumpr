@@ -23,7 +23,6 @@ import { leaveRoll } from '@/features/rolls/api';
 import {
   columnsAfterPinch,
   DEFAULT_COLUMNS,
-  flattenSections,
   groupIntoSections,
   sectionModeFor,
   toGridRows,
@@ -86,14 +85,11 @@ export default function RollScreen() {
   const isAdmin = !!h?.my.is_admin;
   const chapters = h?.chapters ?? [];
 
-  useBackHandler(
-    () => {
-      setSelectMode(false);
-      setSelected(new Set());
-      return true;
-    },
-    selectMode,
-  );
+  useBackHandler(() => {
+    setSelectMode(false);
+    setSelected(new Set());
+    return true;
+  }, selectMode);
 
   const exitSelect = () => {
     setSelectMode(false);
@@ -197,7 +193,8 @@ export default function RollScreen() {
     } catch (e) {
       const err = toAppError(e);
       toast.show({
-        message: err.code === 'not_admin' ? 'Only hosts can invite to this Roll.' : friendlyMessage(e),
+        message:
+          err.code === 'not_admin' ? 'Only hosts can invite to this Roll.' : friendlyMessage(e),
       });
     } finally {
       setSharing(false);
@@ -210,7 +207,9 @@ export default function RollScreen() {
     try {
       await reviewGuestPhotos(ids, approve);
       toast.show({
-        message: approve ? `Approved ${pluralize(ids.length, 'photo')}` : `Rejected ${pluralize(ids.length, 'photo')}`,
+        message: approve
+          ? `Approved ${pluralize(ids.length, 'photo')}`
+          : `Rejected ${pluralize(ids.length, 'photo')}`,
       });
       invalidateRoll(qc, id, h?.roll.crew_id);
     } catch (e) {
@@ -276,7 +275,11 @@ export default function RollScreen() {
           icon={c.icon}
           tone={c.tone}
           title={err.code === 'not_a_member' ? "You're not in this Roll" : c.title}
-          body={err.code === 'not_a_member' ? 'Ask someone inside for an invite and it will show up here.' : c.body}
+          body={
+            err.code === 'not_a_member'
+              ? 'Ask someone inside for an invite and it will show up here.'
+              : c.body
+          }
           primary={
             err.code === 'not_a_member'
               ? { label: 'Go home', onPress: () => router.replace('/') }
@@ -316,7 +319,8 @@ export default function RollScreen() {
                 body="You have 30 days to download the photos you can see."
                 primary={{
                   label: 'Download my copies',
-                  onPress: () => router.push({ pathname: '/sheets/download', params: { rollId: h.roll.id } }),
+                  onPress: () =>
+                    router.push({ pathname: '/sheets/download', params: { rollId: h.roll.id } }),
                 }}
                 primaryVariant="strong"
               />
@@ -411,7 +415,12 @@ export default function RollScreen() {
       </Text>
       {canUpload ? (
         <View className="mt-3 flex-row flex-wrap gap-2">
-          <Button label="Add photos" icon="camera" variant="strong" onPress={() => setAddOpen(true)} />
+          <Button
+            label="Add photos"
+            icon="camera"
+            variant="strong"
+            onPress={() => setAddOpen(true)}
+          />
           <Button
             label="Import from this weekend"
             icon="image"
@@ -461,17 +470,28 @@ export default function RollScreen() {
             variant="primary"
             size="lg"
             disabled={selected.size === 0 || downloadsOff}
-            disabledReason={downloadsOff ? 'The host turned downloads off' : 'Pick at least one photo'}
+            disabledReason={
+              downloadsOff ? 'The host turned downloads off' : 'Pick at least one photo'
+            }
             onPress={() => {
               router.push({
                 pathname: '/sheets/download',
-                params: { rollId: id as string, scope: 'selected', photoIds: [...selected].join(',') },
+                params: {
+                  rollId: id as string,
+                  scope: 'selected',
+                  photoIds: [...selected].join(','),
+                },
               });
               exitSelect();
             }}
           />
           {canRemoveSelected ? (
-            <Button label="Remove" variant="destructive" fullWidth onPress={() => void removeSelected()} />
+            <Button
+              label="Remove"
+              variant="destructive"
+              fullWidth
+              onPress={() => void removeSelected()}
+            />
           ) : null}
         </View>
       )}
@@ -500,7 +520,11 @@ export default function RollScreen() {
         </View>
       </ModalSheet>
 
-      <ModalSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title={h?.roll.name ?? 'Roll'}>
+      <ModalSheet
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        title={h?.roll.name ?? 'Roll'}
+      >
         <View>
           {h && !h.my.is_guest ? (
             <ListRow
@@ -537,7 +561,13 @@ export default function RollScreen() {
             />
           ) : null}
           {h && h.my.via === 'roll' ? (
-            <ListRow icon="logout" title="Leave Roll" destructive divider={false} onPress={() => void onLeave()} />
+            <ListRow
+              icon="logout"
+              title="Leave Roll"
+              destructive
+              divider={false}
+              onPress={() => void onLeave()}
+            />
           ) : null}
         </View>
       </ModalSheet>
