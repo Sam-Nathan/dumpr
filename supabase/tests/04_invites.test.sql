@@ -244,14 +244,16 @@ select throws_ok($$select public.create_invite(tests.crew(), tests.roll(1))$$, '
 -- in-app invites
 select tests.as_super();
 update public.profiles set who_can_add = 'nobody' where id = tests.u('jill');
+-- kim shares no crew with alice: only an 'everyone' setting makes kim invitable (F10)
+update public.profiles set who_can_add = 'everyone' where id = tests.u('kim');
 delete from public.crew_members where user_id = tests.u('jill');
 insert into public.blocks (blocker_id, blocked_id) values (tests.u('ivan'), tests.u('alice'));
 select tests.as_user('alice');
 create temp table t_res as select public.invite_users(tests.crew(), null, array[tests.u('kim'), tests.u('jill'), tests.u('cara'), tests.u('gus'), tests.u('ivan')]) as r;
 select is((select r -> 'invited' from t_res), jsonb_build_array(tests.u('kim')), 'only kim is invited');
 select is((select jsonb_object_agg(e ->> 'user_id', e ->> 'reason') from t_res, jsonb_array_elements(r -> 'skipped') e),
-  jsonb_build_object(tests.u('jill'), 'not_accepting', tests.u('cara'), 'already_member', tests.u('gus'), 'guest', tests.u('ivan'), 'blocked'),
-  'skipped with reasons: who_can_add nobody, member, guest, blocked');
+  jsonb_build_object(tests.u('jill'), 'not_accepting', tests.u('cara'), 'already_member', tests.u('gus'), 'guest', tests.u('ivan'), 'not_accepting'),
+  'skipped with reasons: who_can_add nobody, member, guest, blocked (a block reads as not_accepting)');
 select tests.as_user('kim');
 select is((select payload ->> 'code' from public.activity_events where kind = 'invite'), (select r #>> '{invite,code}' from t_res),
   'invite activity carries the code');
