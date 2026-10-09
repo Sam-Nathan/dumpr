@@ -189,7 +189,7 @@ select is(
 
 select is(
   (select array_agg(tablename::text order by tablename) from pg_publication_tables where pubname = 'supabase_realtime'),
-  array['activity_events', 'messages', 'photos'], 'realtime publication carries messages, activity_events, photos');
+  array['activity_events', 'messages'], 'realtime publication carries messages and activity_events (photos go through broadcast)');
 
 -- anon role at runtime
 select tests.as_anon();

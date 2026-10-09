@@ -222,15 +222,21 @@ update public.crew_members set muted = true where crew_id = tests.crew() and use
 update public.upload_batches set bucket_start = bucket_start - interval '1 hour';
 delete from public.activity_events;
 select ok(private.fanout_upload_batches() > 0, 'fanout emits digests for closed buckets');
+-- one digest row per recipient and roll for the closed hour: cara 1 + dan 1 (both walked back by removals) + gus 2
+-- (approved guest photos); dan is muted and gus is a guest, so neither gets a digest themselves
 select is((select array_agg(recipient_id order by recipient_id) from public.activity_events
-            where kind = 'upload_batch' and actor_id = tests.u('cara') and roll_id = tests.roll(1)),
-  array[tests.u('alice'), tests.u('bob'), tests.u('hana'), tests.u('ravi')],
-  'one digest per non-muted, non-guest member except the uploader');
-select is((select payload ->> 'count' from public.activity_events where kind = 'upload_batch' and actor_id = tests.u('cara') and roll_id = tests.roll(1) limit 1), '1',
-  'payload count (bucket walked back by the removal of P1)');
-select is((select payload ->> 'uploader_name' from public.activity_events where kind = 'upload_batch' and actor_id = tests.u('cara') and roll_id = tests.roll(1) limit 1), 'Cara',
-  'payload uploader_name');
-select is((select payload ->> 'roll_name' from public.activity_events where kind = 'upload_batch' and actor_id = tests.u('cara') and roll_id = tests.roll(1) limit 1), 'Goa ''26',
+            where kind = 'upload_batch' and roll_id = tests.roll(1)),
+  array[tests.u('alice'), tests.u('bob'), tests.u('cara'), tests.u('hana'), tests.u('ravi')],
+  'one digest per non-muted, non-guest member (the uploaders only get the other one''s)');
+select is((select payload ->> 'count' from public.activity_events where kind = 'upload_batch' and recipient_id = tests.u('alice') and roll_id = tests.roll(1)), '4',
+  'payload count = cara 1 + dan 1 + gus 2 (buckets walked back by the removals of P1 / P2)');
+select is((select payload ->> 'uploaders' from public.activity_events where kind = 'upload_batch' and recipient_id = tests.u('alice') and roll_id = tests.roll(1)), '3',
+  'payload uploaders');
+select is((select payload ->> 'count' from public.activity_events where kind = 'upload_batch' and recipient_id = tests.u('cara') and roll_id = tests.roll(1)), '3',
+  'cara''s own uploads are not counted for her (dan 1 + gus 2)');
+select is((select payload ->> 'uploader_name' from public.activity_events where kind = 'upload_batch' and recipient_id = tests.u('alice') and roll_id = tests.roll(1)), 'Gus',
+  'payload uploader_name = the top uploader');
+select is((select payload ->> 'roll_name' from public.activity_events where kind = 'upload_batch' and recipient_id = tests.u('alice') and roll_id = tests.roll(1)), 'Goa ''26',
   'payload roll_name');
 select ok((select bool_and(not instant) from public.activity_events where kind = 'upload_batch'), 'digests are instant = false');
 select is((select count(*) from public.upload_batches where notified_at is null), 0::bigint, 'buckets marked notified');
