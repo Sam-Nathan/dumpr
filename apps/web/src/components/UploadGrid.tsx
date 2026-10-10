@@ -86,7 +86,7 @@ function Tile({
             </button>
           ) : (
             <span className="text-[12px] font-semibold leading-tight text-[#F4F3F6]">
-              {uploadErrorCopy(item.errorCode)}
+              {uploadErrorCopy(item.errorCode, false)}
             </span>
           )}
           <button

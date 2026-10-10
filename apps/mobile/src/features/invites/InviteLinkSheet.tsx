@@ -2,7 +2,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { inviteHref, parseInviteLink } from '../../lib/deeplinks';
 import {
@@ -70,10 +70,7 @@ export function InviteLinkSheet({ visible, onClose }: InviteLinkSheetProps) {
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={close}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1 justify-end bg-black/50"
-      >
+      <KeyboardAvoidingView behavior="padding" className="flex-1 justify-end bg-black/50">
         <Pressable className="flex-1" accessibilityLabel="Close" onPress={close} />
         <View
           className="rounded-t-sheet bg-paper px-5 pt-3 dark:bg-paper-dark"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { needsProfileSetup, resolveGate } from './profileGate';
+import { displayGate, needsProfileSetup, resolveGate } from './profileGate';
 
 const base = {
   authReady: true,
@@ -27,5 +27,23 @@ describe('auth gate', () => {
     expect(resolveGate({ ...base, profile: { ...done, handle: null } })).toBe('needs-profile');
     expect(resolveGate({ ...base, profileLoading: true, profile: undefined })).toBe('loading');
     expect(resolveGate({ ...base, profileError: true, profile: undefined })).toBe('error');
+  });
+});
+
+describe('displayGate', () => {
+  it('shows nothing only for the very first loading of a cold start', () => {
+    expect(displayGate(null, 'loading')).toBe('loading');
+  });
+
+  it('keeps the previous screen mounted while a new profile loads after sign-in', () => {
+    expect(displayGate('signed-out', 'loading')).toBe('signed-out');
+    expect(displayGate('ready', 'loading')).toBe('ready');
+  });
+
+  it('follows every settled state', () => {
+    expect(displayGate('signed-out', 'needs-profile')).toBe('needs-profile');
+    expect(displayGate('needs-profile', 'ready')).toBe('ready');
+    expect(displayGate('ready', 'signed-out')).toBe('signed-out');
+    expect(displayGate('signed-out', 'error')).toBe('error');
   });
 });

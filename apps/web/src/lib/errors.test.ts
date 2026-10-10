@@ -55,4 +55,12 @@ describe('misc', () => {
     expect(uploadErrorCopy('storage_full')).toBe('No room left');
     expect(uploadErrorCopy(undefined)).toBe('Tap to retry');
   });
+  it('non-retryable tiles never say tap to retry', () => {
+    expect(uploadErrorCopy('heic_unsupported', false)).not.toMatch(/retry/i);
+    expect(uploadErrorCopy('unsupported_type', false)).toBe('Not supported');
+    expect(uploadErrorCopy('something_else', false)).not.toMatch(/retry/i);
+  });
+  it('has copy for a join request made too soon', () => {
+    expect(errorCopy('request_cooldown')).toContain('Try again tomorrow');
+  });
 });

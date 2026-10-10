@@ -24,6 +24,7 @@ export const RPC_ERROR_CODES = [
   'invalid_input',
   'handle_taken',
   'crew_deleted',
+  'request_cooldown',
 ] as const;
 
 /** Codes returned by Edge Functions (`{ error: { code } }`) in addition to the RPC codes. */
@@ -147,6 +148,10 @@ const COPY: Record<ErrorCode, ErrorCopy> = {
   crew_deleted: {
     title: 'This Crew was deleted',
     message: 'Members have 30 days to download the photos they can see.',
+  },
+  request_cooldown: {
+    title: 'You asked recently',
+    message: 'The host will see your request. Try again tomorrow.',
   },
   // --- Function codes ---
   storage_full: {

@@ -18,9 +18,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthGate } from '../data/gate';
 import { queryClient } from '../data/queryClient';
-import type { AuthGateState } from '../data/profileGate';
+import { type AuthGateState, displayGate } from '../data/profileGate';
 import { usePendingInvite } from '../features/invites/pendingInvite';
 import { configureNotifications } from '../features/notifications/register';
+import { useNotificationTaps } from '../features/notifications/useNotificationTaps';
 import { setUploadQueryClient, startUploadWorker } from '../features/uploads';
 import { inviteHref } from '../lib/deeplinks';
 import { fontMap } from '../lib/fonts';
@@ -89,7 +90,13 @@ function Themed({ children }: { children: React.ReactNode }) {
 }
 
 function AuthGate() {
-  const { state, retry } = useAuthGate();
+  const { state: rawState, retry } = useAuthGate();
+  // A transient `loading` (profile fetch right after sign-in) keeps the previous screen mounted.
+  const settled = useRef<AuthGateState | null>(null);
+  const state = displayGate(settled.current, rawState);
+  settled.current = rawState === 'loading' ? settled.current : rawState;
+
+  useNotificationTaps(state === 'ready');
 
   useEffect(() => {
     if (state !== 'loading') void SplashScreen.hideAsync();

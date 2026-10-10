@@ -20,7 +20,7 @@ export const messagesKey = (threadKey: string) => ['messages', threadKey] as con
 
 const PAGE = 40;
 export const MESSAGE_SELECT =
-  'id, crew_id, roll_id, thread_key, author_id, client_id, body, photo_id, reply_to_id, kind, deleted_at, created_at, author:profiles!author_id(display_name, avatar_key, ring_color), reactions:message_reactions(user_id, kind), photo:photos!photo_id(id, sort_at, roll:rolls(name))';
+  'id, crew_id, roll_id, thread_key, author_id, client_id, body, photo_id, reply_to_id, kind, deleted_at, created_at, author:profiles!author_id(display_name, avatar_key, ring_color), reactions:message_reactions(user_id, kind), photo:photos!photo_id(id, sort_at, roll:rolls!photos_roll_id_fkey(name))';
 
 type Pages = InfiniteData<ChatMessage[], string | null>;
 

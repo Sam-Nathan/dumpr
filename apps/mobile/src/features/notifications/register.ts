@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
+import { rpc } from '../../data/rpc';
 import { getSessionSnapshot } from '../../data/session';
-import { supabase } from '../../lib/supabase';
 import type { PermissionOutcome } from '../../ui/PermissionPrimer';
 
 /**
@@ -74,23 +74,24 @@ async function currentOutcome(): Promise<PermissionOutcome> {
   return r.canAskAgain ? 'denied' : 'blocked';
 }
 
-/** Get the Expo push token and upsert it into `push_tokens` (direct upsert of own row). */
+/** Get the Expo push token and register it through `register_push_token(p_token, p_platform)`. */
 async function saveToken(): Promise<boolean> {
   const session = getSessionSnapshot();
   const id = projectId();
   if (!session || session.user.is_anonymous || !id) return false;
   const N = await import('expo-notifications');
   const { data: token } = await N.getExpoPushTokenAsync({ projectId: id });
-  const { error } = await supabase.from('push_tokens').upsert(
-    {
-      token,
-      user_id: session.user.id,
-      platform: Platform.OS === 'ios' ? 'ios' : 'android',
-      last_seen_at: new Date().toISOString(),
-    },
-    { onConflict: 'token' },
-  );
-  return !error;
+  try {
+    // security definer RPC: a PostgREST upsert would need UPDATE on the key columns, and the RPC also
+    // re-owns a token that moved between accounts on a shared phone.
+    await rpc<void>('register_push_token', {
+      p_token: token,
+      p_platform: Platform.OS === 'ios' ? 'ios' : 'android',
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** OS prompt + token save. Used by the notifications primer sheet's "Allow". */

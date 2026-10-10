@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header, type HeaderProps } from './Header';
 import { useBackHandler } from './navigation';
@@ -63,7 +63,7 @@ export function Screen({
   return (
     <KeyboardAvoidingView
       testID={testID}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
       className={`flex-1 ${dark ? '' : 'bg-paper dark:bg-paper-dark'}`}
       style={dark ? { backgroundColor: INK } : undefined}
     >

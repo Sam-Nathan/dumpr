@@ -187,6 +187,8 @@ function PhotoDialog({
   const [displayUrl, setDisplayUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Set when the browser would not let us fetch the original (CORS): a real link the person taps.
+  const [manualUrl, setManualUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const dlg = ref.current;
@@ -198,6 +200,7 @@ function PhotoDialog({
   useEffect(() => {
     setDisplayUrl(null);
     setMessage(null);
+    setManualUrl(null);
     if (!photoId) return;
     let cancelled = false;
     (async () => {
@@ -219,6 +222,7 @@ function PhotoDialog({
     if (!photoId) return;
     setSaving(true);
     setMessage(null);
+    setManualUrl(null);
     try {
       const signed = await signMedia(await accessToken(), [
         { photo_id: photoId, variant: 'original' },
@@ -239,8 +243,9 @@ function PhotoDialog({
         a.remove();
         setTimeout(() => URL.revokeObjectURL(obj), 10_000);
       } catch {
-        // Cross-origin fetch blocked (CORS): let the browser open the file so it can be saved by hand.
-        window.open(url, '_blank', 'noopener');
+        // Cross-origin fetch blocked (CORS). window.open after the awaits above is a popup the browser
+        // blocks, so show a link instead: tapping it is a fresh user gesture.
+        setManualUrl(url);
       }
     } catch (err) {
       setMessage(errorCopy(err instanceof MediaSignError ? err.code : err));
@@ -269,6 +274,20 @@ function PhotoDialog({
             />
           ) : (
             <div className="aspect-square w-full rounded-[16px] bg-line dark:bg-line-dark" />
+          )}
+          {manualUrl && (
+            <p className="mt-3 text-[13px] text-ink2 dark:text-ink2-dark">
+              Your browser would not save it directly.{' '}
+              <a
+                href={manualUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold underline"
+              >
+                Open the photo
+              </a>{' '}
+              and save it from there.
+            </p>
           )}
           {message && (
             <p role="alert" className="mt-3 text-[13px] text-danger dark:text-danger-dark">

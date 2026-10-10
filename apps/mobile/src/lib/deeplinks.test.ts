@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { inviteHref, inviteUrl, parseInviteLink, rewriteIncomingPath } from './deeplinks';
+import {
+  inviteHref,
+  inviteUrl,
+  notificationUrlToPath,
+  parseInviteLink,
+  rewriteIncomingPath,
+} from './deeplinks';
 
 describe('parseInviteLink', () => {
   it('parses web links', () => {
@@ -61,5 +67,40 @@ describe('rewriteIncomingPath', () => {
     expect(inviteHref('abc')).toBe('/invite/abc');
     expect(inviteUrl('abc', 'roll')).toBe('https://dumpr.app/r/abc');
     expect(inviteUrl('abc', 'crew', 'https://dumpr.app/')).toBe('https://dumpr.app/c/abc');
+  });
+});
+
+describe('notificationUrlToPath', () => {
+  const id = '3f1c2b9e-8a41-4f0b-9d7e-5a6b7c8d9e0f';
+
+  it('maps push-dispatch urls to app paths', () => {
+    expect(notificationUrlToPath(`dumpr://roll/${id}`)).toBe(`/roll/${id}`);
+    expect(notificationUrlToPath(`dumpr://crew/${id}`)).toBe(`/crew/${id}`);
+    expect(notificationUrlToPath(`dumpr://photo/${id}`)).toBe(`/photo/${id}`);
+    expect(notificationUrlToPath('dumpr://invite/abc234')).toBe('/invite/abc234');
+    expect(notificationUrlToPath('dumpr://inbox')).toBe('/inbox');
+    expect(notificationUrlToPath('dumpr://inbox/')).toBe('/inbox');
+  });
+
+  it('keeps the chat thread key url-encoded as the route param', () => {
+    expect(notificationUrlToPath(`dumpr://chat/c%3A${id}`)).toBe(`/chat/c%3A${id}`);
+    expect(notificationUrlToPath(`dumpr://chat/r:${id}`)).toBe(`/chat/r%3A${id}`);
+    expect(notificationUrlToPath('dumpr://chat/x%3Aabc')).toBeNull();
+    expect(notificationUrlToPath('dumpr://chat/%E0%A4%A')).toBeNull();
+  });
+
+  it('understands shareable invite links', () => {
+    expect(notificationUrlToPath('dumpr://r/k7qm2xpa9d')).toBe('/invite/k7qm2xpa9d');
+    expect(notificationUrlToPath('https://dumpr.app/c/k7qm2xpa9d')).toBe('/invite/k7qm2xpa9d');
+  });
+
+  it('ignores query strings and rejects anything else', () => {
+    expect(notificationUrlToPath(`dumpr://roll/${id}?x=1`)).toBe(`/roll/${id}`);
+    expect(notificationUrlToPath('dumpr://roll')).toBeNull();
+    expect(notificationUrlToPath('dumpr://roll/../../you')).toBeNull();
+    expect(notificationUrlToPath('dumpr://unknown/abc')).toBeNull();
+    expect(notificationUrlToPath('https://evil.example/r/k7qm2xpa9d')).toBeNull();
+    expect(notificationUrlToPath('')).toBeNull();
+    expect(notificationUrlToPath(undefined)).toBeNull();
   });
 });

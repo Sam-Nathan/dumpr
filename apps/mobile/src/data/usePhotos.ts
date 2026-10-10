@@ -16,7 +16,7 @@ export function usePhotoLite(photoId: string | undefined) {
       const { data, error } = await supabase
         .from('photos')
         .select(
-          'id, roll_id, crew_id, uploader_id, status, visibility, sort_at, mime, bytes, chapter_id, blurhash, uploader:profiles!uploader_id(display_name), roll:rolls(name)',
+          'id, roll_id, crew_id, uploader_id, status, visibility, sort_at, mime, bytes, chapter_id, blurhash, uploader:profiles!uploader_id(display_name), roll:rolls!photos_roll_id_fkey(name)',
         )
         .eq('id', photoId as string)
         .maybeSingle();

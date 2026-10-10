@@ -19,7 +19,7 @@ export {
   type UploadItemView,
   type UploadQueueSnapshot,
 } from './worker.ts';
-export { useRollPendingUploads, useUploadQueue } from './hooks.ts';
+export { useRollPendingUploads, useUploadProgress, useUploadQueue } from './hooks.ts';
 export type { UploadState, UploadSummary } from '@dumpr/core';
 
 /** Loads the persisted queue, resumes it, follows network changes; registers the background drain. */

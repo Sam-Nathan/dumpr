@@ -1,5 +1,7 @@
 import { ScrollView, View } from 'react-native';
 import type { RollChapter } from '@/data/types-b';
+import { revealCountdownLabel } from './reveal';
+import { useNow } from './useNow';
 import { Button, Chip, Icon, PressableScale, Stamp, Text, FLASH, INK } from '@/ui';
 
 export function ChapterChips({
@@ -27,8 +29,13 @@ export function ChapterChips({
   );
 }
 
-/** "Reveal in 07:42:10" card for a sealed Roll. */
-export function SealedCard({ label }: { label: string | null }) {
+/**
+ * "Reveal in 07:42:10" card for a sealed Roll. It owns the 1 s clock so that only this card re-renders
+ * on a tick, not the whole Roll screen.
+ */
+export function SealedCard({ until }: { until: string | null }) {
+  const now = useNow(until ? 1000 : null);
+  const label = revealCountdownLabel(until, now);
   return (
     <View className="flex-row items-center gap-4 rounded-card bg-ink p-4">
       <View className="h-12 w-12 items-center justify-center rounded-pill bg-white/10">

@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import type { UploadItemView } from '@/features/uploads';
+import { useUploadProgress, type UploadItemView } from '@/features/uploads';
 import type { GridPhoto } from '@/data/types-b';
 import { Icon, PhotoTile, Text, FLASH, INK, type PhotoTileState } from '@/ui';
 import type { GridRow } from './grid';
@@ -14,6 +14,7 @@ export const GAP = 2;
 function uploadState(s: UploadItemView['state']): PhotoTileState {
   if (s === 'failed' || s === 'blocked') return 'failed';
   if (s === 'duplicate') return 'duplicate';
+  if (s === 'done') return 'default'; // kept briefly until the server grid returns it: no overlay
   return 'uploading';
 }
 
@@ -28,23 +29,33 @@ export interface GridCtx {
   onRetry: (uploadId: string) => void;
 }
 
+/** An upload tile: subscribes to its own progress so the rest of the grid does not re-render per tick. */
+function UploadTile({
+  item: it,
+  onRetry,
+}: {
+  item: UploadItemView;
+  onRetry: (uploadId: string) => void;
+}) {
+  const progress = useUploadProgress(it.id);
+  const state = uploadState(it.state);
+  return (
+    <PhotoTile
+      uri={it.thumbUri ?? it.localUri}
+      state={state}
+      progress={progress}
+      onRetry={() => onRetry(it.id)}
+      onPress={state === 'failed' ? () => onRetry(it.id) : undefined}
+      label="Your photo"
+    />
+  );
+}
+
 function renderCell(cell: Cell, ctx: GridCtx) {
   if (cell.kind === 'sealed') {
     return <PhotoTile state="sealed" label="Sealed photo" />;
   }
-  if (cell.kind === 'upload') {
-    const it = cell.item;
-    return (
-      <PhotoTile
-        uri={it.thumbUri ?? it.localUri}
-        state={uploadState(it.state)}
-        progress={it.progress}
-        onRetry={() => ctx.onRetry(it.id)}
-        onPress={uploadState(it.state) === 'failed' ? () => ctx.onRetry(it.id) : undefined}
-        label="Your photo"
-      />
-    );
-  }
+  if (cell.kind === 'upload') return <UploadTile item={cell.item} onRetry={ctx.onRetry} />;
   const p = cell.photo;
   const selected = ctx.selected.has(p.id);
   const mine = p.uploader_id === ctx.meId;

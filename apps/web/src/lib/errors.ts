@@ -15,6 +15,7 @@ const COPY: Record<string, string> = {
   already_member: "You're already in this Roll.",
   blocked: "We couldn't add you to this Roll. Get the app to ask the host.",
   crew_deleted: 'This group was deleted by its host.',
+  request_cooldown: 'You asked recently \u2014 the host will see your request. Try again tomorrow.',
   invalid_input: 'Something about that looks off. Check it and try again.',
   handle_taken: 'That one is taken.',
   storage_full: 'There is no room left for more photos right now.',
@@ -80,7 +81,7 @@ export function errorCopy(errOrCode: unknown): string {
 }
 
 /** Short copy for a single failed / blocked upload tile. */
-export function uploadErrorCopy(code: string | null | undefined): string {
+export function uploadErrorCopy(code: string | null | undefined, retryable = true): string {
   switch (code) {
     case 'uploads_disabled':
       return 'Uploads closed';
@@ -93,6 +94,8 @@ export function uploadErrorCopy(code: string | null | undefined): string {
     case 'file_too_large':
     case 'too_large':
       return 'Too big';
+    case 'heic_unsupported':
+      return "This browser can't read HEIC";
     case 'unsupported_type':
     case 'unsupported_format':
       return 'Not supported';
@@ -100,6 +103,7 @@ export function uploadErrorCopy(code: string | null | undefined): string {
     case 'network':
       return 'Waiting for network';
     default:
-      return 'Tap to retry';
+      // A blocked tile has no retry action, so it must not promise one.
+      return retryable ? 'Tap to retry' : "Couldn't add this one";
   }
 }

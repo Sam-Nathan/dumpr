@@ -4,7 +4,7 @@ const getCameraPermissionsAsync = () => Camera.getCameraPermissionsAsync();
 const requestCameraPermissionsAsync = () => Camera.requestCameraPermissionsAsync();
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -83,6 +83,23 @@ export default function CameraScreen() {
   return <Viewfinder rollId={params.rollId} />;
 }
 
+/**
+ * The date stamp in the corner, like the film-camera mockup. It owns its clock and only re-renders when
+ * the printed minute changes, so the viewfinder (and its gestures) are not rebuilt every second.
+ */
+function CameraStamp() {
+  const [text, setText] = useState(() => formatStamp(Date.now(), { seconds: false }));
+  useEffect(() => {
+    const t = setInterval(() => setText(formatStamp(Date.now(), { seconds: false })), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <Text variant="stamp" className="text-[12px]" style={{ color: SHUTTER }}>
+      {text}
+    </Text>
+  );
+}
+
 function Viewfinder({ rollId }: { rollId?: string }) {
   const insets = useSafeAreaInsets();
   const cam = useRef<CameraView>(null);
@@ -98,13 +115,6 @@ function Viewfinder({ rollId }: { rollId?: string }) {
   const [hint, setHint] = useState<string | null>(null);
   const [batch, setBatch] = useState<{ ids: string[]; rollName: string } | null>(null);
   const batchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [now, setNow] = useState(Date.now());
-
-  // The date stamp in the corner ticks like the film-camera mockup.
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
   useEffect(
     () => () => {
       if (batchTimer.current) clearTimeout(batchTimer.current);
@@ -123,12 +133,16 @@ function Viewfinder({ rollId }: { rollId?: string }) {
     router.push({ pathname: '/import', params: { rollId: roll?.id } });
   }, [roll?.id]);
 
-  const swipe = Gesture.Pan()
-    .runOnJS(true)
-    .activeOffsetY([-24, 24])
-    .onEnd((e) => {
-      if (e.translationY < -60) openImport();
-    });
+  const swipe = useMemo(
+    () =>
+      Gesture.Pan()
+        .runOnJS(true)
+        .activeOffsetY([-24, 24])
+        .onEnd((e) => {
+          if (e.translationY < -60) openImport();
+        }),
+    [openImport],
+  );
 
   const showHint = (text: string) => {
     setHint(text);
@@ -265,9 +279,7 @@ function Viewfinder({ rollId }: { rollId?: string }) {
                 YOUR SHOT #{shots + 1}
               </Text>
             </View>
-            <Text variant="stamp" className="text-[12px]" style={{ color: SHUTTER }}>
-              {formatStamp(now, { seconds: false })}
-            </Text>
+            <CameraStamp />
           </View>
 
           {!ready ? (

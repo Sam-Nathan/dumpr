@@ -94,3 +94,40 @@ export function rewriteIncomingPath(path: string): string {
   if (invite && invite.kind) return inviteHref(invite.code);
   return path;
 }
+
+const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+/**
+ * Push notification tap -> in-app path. push-dispatch puts `data.url` on every notification:
+ * `dumpr://roll/<id>`, `crew/<id>`, `photo/<id>`, `invite/<code>`, `chat/<url-encoded thread key>` and
+ * `inbox`. Invite web links (`https://dumpr.app/r/<code>`) work too. Returns null for anything else so a
+ * malformed or foreign url never navigates.
+ */
+export function notificationUrlToPath(url: string | null | undefined): string | null {
+  const text = (url ?? '').trim();
+  if (!text) return null;
+  const m = /^dumpr:\/\/([a-z]+)(?:\/([^/?#]+))?\/?(?:[?#].*)?$/i.exec(text);
+  if (m) {
+    const head = (m[1] ?? '').toLowerCase();
+    const arg = m[2];
+    if (head === 'inbox') return '/inbox';
+    if (!arg) return null;
+    if (head === 'chat') {
+      let key: string;
+      try {
+        key = decodeURIComponent(arg);
+      } catch {
+        return null;
+      }
+      return /^[cr]:[A-Za-z0-9_-]{1,64}$/.test(key) ? `/chat/${encodeURIComponent(key)}` : null;
+    }
+    if (!ID_RE.test(arg)) return null;
+    if (head === 'roll' || head === 'crew' || head === 'photo') return `/${head}/${arg}`;
+    if (head === 'invite') return inviteHref(arg);
+    // dumpr://r/<code> and dumpr://c/<code> are the shareable invite links
+    const invite = parseInviteLink(text);
+    return invite?.kind ? inviteHref(invite.code) : null;
+  }
+  const invite = /^https?:\/\//i.test(text) ? parseInviteLink(text) : null;
+  return invite?.kind ? inviteHref(invite.code) : null;
+}

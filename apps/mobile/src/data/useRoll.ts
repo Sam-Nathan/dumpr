@@ -8,6 +8,7 @@ import {
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useEffect, useMemo } from 'react';
 import { nextCursor, PHOTOS_PAGE_SIZE, type GridCursor } from '../features/rolls/grid';
+import { refreshRollPhotos } from '../features/rolls/pages';
 import { AppError, toAppError } from '../lib/errors';
 import { supabase } from '../lib/supabase';
 import { photoUrlCache, signedKey } from './media';
@@ -112,7 +113,7 @@ export function useRollRealtime(rollId: string | undefined): void {
       if (timer) return;
       timer = setTimeout(() => {
         timer = null;
-        void qc.invalidateQueries({ queryKey: ['roll-photos', rollId] });
+        refreshRollPhotos(qc, rollId);
         void qc.invalidateQueries({ queryKey: rollHeaderKey(rollId) });
       }, ROLL_REFRESH_DEBOUNCE_MS);
     };
@@ -156,7 +157,7 @@ export function useReviewPhotos(rollId: string | undefined, enabled: boolean) {
 }
 
 export function invalidateRoll(qc: QueryClient, rollId: string, crewId?: string): void {
-  void qc.invalidateQueries({ queryKey: ['roll-photos', rollId] });
+  refreshRollPhotos(qc, rollId); // page 1 only (see features/rolls/pages.ts)
   void qc.invalidateQueries({ queryKey: rollHeaderKey(rollId) });
   void qc.invalidateQueries({ queryKey: ['roll-review', rollId] });
   void qc.invalidateQueries({ queryKey: homeFeedKey });

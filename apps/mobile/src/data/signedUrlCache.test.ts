@@ -65,6 +65,24 @@ describe('SignedUrlCache', () => {
     expect(calls).toHaveLength(1);
   });
 
+  it('trusts an unavailable answer for 5 minutes, then asks again', async () => {
+    let now = 0;
+    const { cache, calls } = setup({ now: () => now });
+    cache.request(['gone:thumb']);
+    await cache.idle();
+    now = 5 * 60_000 - 1;
+    expect(cache.reasonUnavailable('gone:thumb')).toBe('not_found');
+    cache.request(['gone:thumb']);
+    await cache.idle();
+    expect(calls).toHaveLength(1);
+    now = 5 * 60_000;
+    expect(cache.reasonUnavailable('gone:thumb')).toBeUndefined();
+    cache.request(['gone:thumb']);
+    await cache.idle();
+    expect(calls).toHaveLength(2);
+    expect(cache.reasonUnavailable('gone:thumb')).toBe('not_found');
+  });
+
   it('backs off after a failed batch and notifies listeners', async () => {
     let now = 0;
     const { cache, calls } = setup({ now: () => now, fail: true });

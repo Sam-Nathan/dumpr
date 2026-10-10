@@ -3,7 +3,8 @@
  *
  * Many components ask for URLs in the same frame (a 60-tile grid). Requests are collected for one
  * short tick and sent as a single `media-sign` call (<= 300 keys per call). Resolved URLs are cached
- * in memory until `expires_at - 5 min`.
+ * in memory until `expires_at - 5 min`. Keys the server refused ("unavailable") are not re-requested for
+ * `unavailableTtlMs` (5 min): a photo can become visible later (reveal, approval, restored).
  */
 
 export interface SignBatchResponse {
@@ -25,6 +26,8 @@ export interface SignedUrlCacheOptions {
   refreshMarginMs?: number;
   /** After a failed batch, do not retry the same key for this long. Default 8 s. */
   failureCooldownMs?: number;
+  /** How long an "unavailable" answer is trusted before the key may be requested again. Default 5 minutes. */
+  unavailableTtlMs?: number;
   now?: () => number;
   setTimer?: (fn: () => void, ms: number) => unknown;
 }
@@ -40,11 +43,12 @@ export class SignedUrlCache {
   private readonly maxPerCall: number;
   private readonly margin: number;
   private readonly cooldown: number;
+  private readonly unavailableTtl: number;
   private readonly now: () => number;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
 
   private readonly entries = new Map<string, Entry>();
-  private readonly unavailable = new Map<string, string>();
+  private readonly unavailable = new Map<string, { reason: string; at: number }>();
   private readonly failedAt = new Map<string, number>();
   private readonly inflight = new Set<string>();
   private queue = new Set<string>();
@@ -59,6 +63,7 @@ export class SignedUrlCache {
     this.maxPerCall = opts.maxPerCall ?? 300;
     this.margin = opts.refreshMarginMs ?? 5 * 60_000;
     this.cooldown = opts.failureCooldownMs ?? 8_000;
+    this.unavailableTtl = opts.unavailableTtlMs ?? 5 * 60_000;
     this.now = opts.now ?? Date.now;
     this.setTimer = opts.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
   }
@@ -73,7 +78,13 @@ export class SignedUrlCache {
 
   /** Why a key will never get a URL (e.g. "not_found"), if the server said so. */
   reasonUnavailable(key: string): string | undefined {
-    return this.unavailable.get(key);
+    const u = this.unavailable.get(key);
+    if (!u) return undefined;
+    if (this.now() - u.at >= this.unavailableTtl) {
+      this.unavailable.delete(key); // expired: the key may be requested again
+      return undefined;
+    }
+    return u.reason;
   }
 
   /** Queue keys that are missing, stale and not already in flight. Safe to call on every render. */
@@ -84,7 +95,7 @@ export class SignedUrlCache {
       if (!key) continue;
       if (this.peek(key) !== undefined) continue;
       if (this.inflight.has(key) || this.queue.has(key)) continue;
-      if (this.unavailable.has(key)) continue;
+      if (this.reasonUnavailable(key) !== undefined) continue;
       const failed = this.failedAt.get(key);
       if (failed !== undefined && t - failed < this.cooldown) continue;
       this.queue.add(key);
@@ -139,9 +150,11 @@ export class SignedUrlCache {
         const url = res.urls[k];
         if (url) {
           this.entries.set(k, { url, expiresAt: exp });
+          this.unavailable.delete(k);
           this.failedAt.delete(k);
         } else {
-          this.unavailable.set(k, res.unavailable?.[k] ?? 'not_found');
+          this.unavailable.set(k, { reason: res.unavailable?.[k] ?? 'not_found', at: this.now() });
+          this.entries.delete(k);
         }
       }
     } catch {

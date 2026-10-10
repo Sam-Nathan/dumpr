@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from './IconButton';
 import { Text } from './Text';
@@ -41,10 +41,7 @@ export function ModalSheet({
   const body = <View className="px-5 pb-4">{children}</View>;
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1 justify-end bg-black/50"
-      >
+      <KeyboardAvoidingView behavior="padding" className="flex-1 justify-end bg-black/50">
         <Pressable className="flex-1" accessibilityLabel="Close" onPress={onClose} />
         <View
           className="rounded-t-sheet bg-paper pt-3 dark:bg-paper-dark"

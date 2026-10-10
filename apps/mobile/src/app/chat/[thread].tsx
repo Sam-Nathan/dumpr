@@ -1,14 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProfile } from '@/data/profile';
 import { useSession } from '@/data/session';
@@ -371,10 +364,7 @@ function Chat({
   const showComposer = !isGuest && !!info && !err;
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-paper dark:bg-paper-dark"
-    >
+    <KeyboardAvoidingView behavior="padding" className="flex-1 bg-paper dark:bg-paper-dark">
       {header}
       <View className="flex-1">{body}</View>
 

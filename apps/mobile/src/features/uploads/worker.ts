@@ -26,6 +26,7 @@ import {
   type UploadSummary,
 } from '@dumpr/core';
 import * as Crypto from 'expo-crypto';
+import { File, Paths } from 'expo-file-system';
 import * as Network from 'expo-network';
 import { AppState } from 'react-native';
 import {
@@ -42,11 +43,15 @@ import {
 import {
   deleteLargeWorkingFiles,
   deleteWorkingFiles,
+  extOf,
   guessMime,
   isPrepared,
+  itemDir,
   normalizeTakenAt,
   prepareItem,
 } from './prepare.ts';
+import { isPurgeableUri } from './queueRules.ts';
+import { refreshRollPhotos, type RollPhotosQueryClient } from '../rolls/pages.ts';
 import { createMobileTransport } from './transport.ts';
 
 export type EnqueueAsset = {
@@ -69,6 +74,8 @@ export type UploadItemView = {
   bytes: number;
   errorCode?: string;
   attempt: number;
+  /** ms timestamp of the last state change (a `done` tile is retained briefly after this). */
+  updatedAt: number;
   /** Extra, optional detail for C4 rows. */
   fileName?: string;
   /** failed: ms timestamp of the next automatic retry (null = needs a manual retry). */
@@ -100,6 +107,7 @@ let loaded: Promise<void> | null = null;
 let started = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let pumpQueued = false;
+let snapshotById = new Map<string, UploadItemView>();
 let snapshot: UploadQueueSnapshot = {
   items: [],
   summary: summarizeUploads([]),
@@ -109,9 +117,7 @@ let snapshot: UploadQueueSnapshot = {
 
 // ---------------------------------------------------------------- query invalidation
 
-interface QueryClientLike {
-  invalidateQueries(filters: { queryKey: readonly unknown[] }): unknown;
-}
+type QueryClientLike = RollPhotosQueryClient;
 let queryClient: QueryClientLike | null = null;
 const invalidateTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -127,7 +133,8 @@ function invalidateRoll(rollId: string) {
     setTimeout(() => {
       invalidateTimers.delete(rollId);
       try {
-        void queryClient?.invalidateQueries({ queryKey: ['roll-photos', rollId] });
+        // Page 1 only: keyset pages must stay contiguous and refetching every loaded page per upload is slow.
+        if (queryClient) refreshRollPhotos(queryClient, rollId);
         void queryClient?.invalidateQueries({ queryKey: ['roll-header', rollId] });
       } catch {
         // ignore
@@ -151,6 +158,7 @@ function toView(it: Item): UploadItemView {
     progress: itemProgress(s),
     bytes: r.bytes ?? 0,
     attempt: it.attempt,
+    updatedAt: r.updated_at,
   };
   if (r.thumb_uri) v.thumbUri = r.thumb_uri;
   if (r.file_name) v.fileName = r.file_name;
@@ -165,6 +173,7 @@ function toView(it: Item): UploadItemView {
 
 function rebuildSnapshot() {
   const views = [...items.values()].map(toView);
+  snapshotById = new Map(views.map((v) => [v.id, v]));
   snapshot = {
     items: views,
     summary: summarizeUploads(views),
@@ -202,12 +211,18 @@ export function getSnapshot(): UploadQueueSnapshot {
   return snapshot;
 }
 
+/** 0..1 progress of one item, read from the current snapshot (a primitive, so tiles re-render alone). */
+export function getItemProgress(id: string): number {
+  return snapshotById.get(id)?.progress ?? 0;
+}
+
 // ---------------------------------------------------------------- state changes
 
 function persist(id: string, patch: Partial<UploadRow>) {
   const it = items.get(id);
-  if (it) it.row = { ...it.row, ...patch };
-  updateRow(id, { ...patch, updated_at: Date.now() }).catch((e) =>
+  const updatedAt = Date.now();
+  if (it) it.row = { ...it.row, ...patch, updated_at: updatedAt };
+  updateRow(id, { ...patch, updated_at: updatedAt }).catch((e) =>
     console.warn('upload queue write failed', e),
   );
 }
@@ -482,18 +497,39 @@ export function stopUploadWorker(): void {
   timer = null;
 }
 
+/** Copies a cache-directory file into `dumpr-uploads/<id>/`; returns the uri the row should work from. */
+function securePurgeable(id: string, a: EnqueueAsset): string {
+  try {
+    if (!isPurgeableUri(a.uri, [Paths.cache.uri])) return a.uri;
+    const src = new File(a.uri);
+    if (!src.exists) return a.uri;
+    const dir = itemDir(id);
+    dir.create({ intermediates: true, idempotent: true });
+    const copy = new File(dir, `original.${extOf(a.fileName) || extOf(a.uri) || 'jpg'}`);
+    if (copy.exists) copy.delete();
+    src.copy(copy);
+    return copy.uri;
+  } catch {
+    return a.uri; // never fail the photo over a copy; prepareItem tries again
+  }
+}
+
 export async function enqueueUploads(
   assets: EnqueueAsset[],
   target: { rollId: string; chapterId?: string | null },
 ): Promise<string[]> {
   await ensureLoaded();
   const now = Date.now();
+  const ids = assets.map(() => Crypto.randomUUID().toLowerCase());
+  // Camera shots (and picker copies) sit in the cache directory, which the OS can purge before the
+  // worker prepares them: take our own copy right now, before returning.
+  const locals = assets.map((a, i) => securePurgeable(ids[i]!, a));
   const rows: UploadRow[] = assets.map((a, i) => ({
-    id: Crypto.randomUUID().toLowerCase(),
+    id: ids[i]!,
     roll_id: target.rollId,
     chapter_id: target.chapterId ?? null,
     source_uri: a.uri,
-    local_uri: a.uri,
+    local_uri: locals[i]!,
     file_name: a.fileName ?? null,
     mime: guessMime(a.mime, a.fileName, a.uri),
     bytes: a.bytes && a.bytes > 0 ? Math.round(a.bytes) : null,

@@ -34,3 +34,12 @@ export function resolveGate(input: {
   if (input.profileLoading) return 'loading';
   return input.profileError ? 'error' : 'loading';
 }
+
+/**
+ * The state the root layout renders. `loading` right after sign-in (the new user's profile is still being
+ * fetched) must not unmount the navigator (that flashed a blank screen), so a transient `loading` keeps the
+ * previous settled state. Only the very first `loading` of a cold start shows nothing (the splash is up).
+ */
+export function displayGate(prev: AuthGateState | null, next: AuthGateState): AuthGateState {
+  return next === 'loading' && prev !== null ? prev : next;
+}

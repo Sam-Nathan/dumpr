@@ -31,8 +31,7 @@ import { GridRowView, type Cell, type GridCtx } from '@/features/rolls/RollGrid'
 import { RollHero } from '@/features/rolls/RollHero';
 import { ChapterChips, ReviewBanner, SealedCard, UploadPill } from '@/features/rolls/RollParts';
 import { ReviewModal } from '@/features/rolls/ReviewModal';
-import { revealCountdownLabel, sealedUntil } from '@/features/rolls/reveal';
-import { useNow } from '@/features/rolls/useNow';
+import { sealedUntil } from '@/features/rolls/reveal';
 import { retryUpload, useRollPendingUploads } from '@/features/uploads';
 import { friendlyMessage, toAppError } from '@/lib/errors';
 import { pluralize } from '@/lib/format';
@@ -72,7 +71,8 @@ export default function RollScreen() {
   const header = useRollHeader(id);
   const photosQ = useRollPhotos(id, chapterId);
   const photos = useFlatPhotos(photosQ.data);
-  const pending = useRollPendingUploads(id ?? '');
+  const serverIds = useMemo(() => new Set(photos.map((p) => p.id)), [photos]);
+  const pending = useRollPendingUploads(id ?? '', serverIds);
   const h = header.data;
   const crew = useCrewOverview(h?.roll.crew_id);
   const review = useReviewPhotos(id, reviewOpen);
@@ -80,10 +80,8 @@ export default function RollScreen() {
 
   const sealed = !!h?.sealed;
   const until = h ? sealedUntil(h.roll) : null;
-  const now = useNow(sealed && until ? 1000 : null);
-  const countdown = sealed ? revealCountdownLabel(until, now) : null;
   const isAdmin = !!h?.my.is_admin;
-  const chapters = h?.chapters ?? [];
+  const chapters = useMemo(() => h?.chapters ?? [], [h?.chapters]);
 
   useBackHandler(() => {
     setSelectMode(false);
@@ -133,13 +131,17 @@ export default function RollScreen() {
     [columns, selectMode, selected, user?.id, sealed, id, chapterId, toggle],
   );
 
-  // Sections -> list rows (uploads on top, sealed placeholders last).
-  const { rows, headerIndices } = useMemo(() => {
+  // Server sections: regrouped only when the photos / chapters change, never for an upload tick.
+  const sections = useMemo(() => {
     const mode = sectionModeFor(chapters, chapterId);
-    const sections = groupIntoSections(photos, chapters, mode).map((s) => ({
+    return groupIntoSections(photos, chapters, mode).map((s) => ({
       ...s,
       photos: s.photos.map((p): Cell => ({ kind: 'photo', id: p.id, photo: p })),
     }));
+  }, [photos, chapters, chapterId]);
+
+  // Sections -> list rows (uploads on top, sealed placeholders last).
+  const { rows, headerIndices } = useMemo(() => {
     const all: { key: string; title: string; subtitle?: string; photos: Cell[] }[] = [];
     if (pending.length > 0) {
       all.push({
@@ -160,10 +162,14 @@ export default function RollScreen() {
       }
     }
     return toGridRows(all, columns);
-  }, [photos, chapters, chapterId, pending, sealed, h?.photo_count, columns]);
+  }, [sections, pending, sealed, h?.photo_count, photos.length, columns]);
 
   const uploading = pending.filter(
-    (p) => p.state !== 'failed' && p.state !== 'blocked' && p.state !== 'duplicate',
+    (p) =>
+      p.state !== 'failed' &&
+      p.state !== 'blocked' &&
+      p.state !== 'duplicate' &&
+      p.state !== 'done',
   ).length;
   const failed = pending.filter((p) => p.state === 'failed' || p.state === 'blocked').length;
 
@@ -307,7 +313,7 @@ export default function RollScreen() {
         <>
           {sealed ? (
             <View className="px-4">
-              <SealedCard label={countdown} />
+              <SealedCard until={until} />
             </View>
           ) : null}
           {h.crew.deleted_at ? (
